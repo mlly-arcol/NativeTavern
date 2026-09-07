@@ -27,15 +27,15 @@
                         </Grid>
                     </Button>
                     <TextBlock Text="WORKSPACE" FontSize="10" FontWeight="SemiBold" Foreground="{StaticResource SubtleTextBrush}" Margin="12,6,0,6" />
-                    <Button Content="◉   Chat" Style="{StaticResource NavButtonStyle}" Command="{Binding ShowChatCommand}" />
-                    <Button Content="♙   Characters" Style="{StaticResource NavButtonStyle}" Command="{Binding ShowCharactersCommand}" />
-                    <Button Content="⌁   Prompt Studio" Style="{StaticResource NavButtonStyle}" Command="{Binding ShowPromptStudioCommand}" />
-                    <Button Content="▤   Knowledge Base" Style="{StaticResource NavButtonStyle}" Command="{Binding ShowKnowledgeCommand}" />
-                    <Button Content="⌕   Prompt Inspector" Style="{StaticResource NavButtonStyle}" Command="{Binding ShowPromptInspectorCommand}" />
+                    <Button Content="◉   Chat" Style="{StaticResource SelectedNavButtonStyle}" Tag="{Binding Chat}" Command="{Binding ShowChatCommand}" />
+                    <Button Content="♙   Characters" Style="{StaticResource SelectedNavButtonStyle}" Tag="{Binding Characters}" Command="{Binding ShowCharactersCommand}" />
+                    <Button Content="⌁   Prompt Studio" Style="{StaticResource SelectedNavButtonStyle}" Tag="{Binding PromptStudio}" Command="{Binding ShowPromptStudioCommand}" />
+                    <Button Content="▤   Knowledge Base" Style="{StaticResource SelectedNavButtonStyle}" Tag="{Binding Knowledge}" Command="{Binding ShowKnowledgeCommand}" />
+                    <Button Content="⌕   Prompt Inspector" Style="{StaticResource SelectedNavButtonStyle}" Tag="{Binding PromptInspector}" Command="{Binding ShowPromptInspectorCommand}" />
                 </StackPanel>
                 <StackPanel DockPanel.Dock="Bottom">
                     <Separator Margin="6,8" />
-                    <Button Content="⚙   Settings" Style="{StaticResource NavButtonStyle}" Command="{Binding ShowSettingsCommand}" />
+                    <Button Content="⚙   Settings" Style="{StaticResource SelectedNavButtonStyle}" Tag="{Binding Settings}" Command="{Binding ShowSettingsCommand}" />
                     <Grid Margin="12,9,12,5">
                         <TextBlock Text="NativeTavern" FontSize="11" Foreground="{StaticResource MutedTextBrush}" />
                         <TextBlock Text="v1.0.0" FontSize="10" Foreground="{StaticResource SubtleTextBrush}" HorizontalAlignment="Right" />
