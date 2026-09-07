@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="NativeTavern" Icon="/NativeTavern;component/Assets/NativeTavern.png" Height="820" Width="1280" MinHeight="640" MinWidth="960"
         WindowStartupLocation="CenterScreen" Background="{StaticResource WindowBrush}"
-        FontFamily="Segoe UI Variable Text, Segoe UI" AllowDrop="True" Drop="Window_OnDrop">
+        FontFamily="Microsoft YaHei UI, Segoe UI Variable Text, Segoe UI" AllowDrop="True" Drop="Window_OnDrop">
     <Grid>
         <Grid.ColumnDefinitions><ColumnDefinition Width="250" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
         <Border Grid.Column="0" Background="{StaticResource SidebarBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,1,0">
@@ -22,8 +22,10 @@
                     <Button Style="{StaticResource NavButtonStyle}" Command="{Binding NewChatCommand}" Margin="0,0,0,12">
                         <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="24"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                             <TextBlock Text="＋" FontSize="18" VerticalAlignment="Center"/>
-                            <TextBlock Grid.Column="1" Text="New chat" VerticalAlignment="Center"/>
-                            <TextBlock Grid.Column="2" Text="Ctrl N" FontSize="10" Foreground="{StaticResource SubtleTextBrush}" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="1" Text="New chat" VerticalAlignment="Center" Margin="2,0,8,0"/>
+                            <Border Grid.Column="2" Background="{StaticResource CardBrush}" CornerRadius="5" Padding="6,2" VerticalAlignment="Center">
+                                <TextBlock Text="Ctrl+N" FontSize="9" Foreground="{StaticResource SubtleTextBrush}"/>
+                            </Border>
                         </Grid>
                     </Button>
                     <TextBlock Text="WORKSPACE" FontSize="10" FontWeight="SemiBold" Foreground="{StaticResource SubtleTextBrush}" Margin="12,6,0,6" />
