@@ -9,6 +9,8 @@ public sealed class ProviderSettings
     public double Temperature { get; set; } = 0.8;
     public double TopP { get; set; } = 1.0;
     public int MaxTokens { get; set; } = 1024;
+    public int ContextLength { get; set; } = 8192;
+    public bool AutoScanLocalModels { get; set; } = true;
     public bool IncludeCharacterContext { get; set; }
     [System.Text.Json.Serialization.JsonIgnore]
     public bool IsConfigured => Uri.TryCreate(BaseUrl, UriKind.Absolute, out _) && !string.IsNullOrWhiteSpace(Model);

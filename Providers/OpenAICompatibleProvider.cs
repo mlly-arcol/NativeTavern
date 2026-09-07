@@ -19,6 +19,35 @@ public sealed class OpenAICompatibleProvider(
     public string Id => "openai-compatible";
     public string DisplayName => "OpenAI Compatible";
 
+    public async Task<IReadOnlyList<ModelInfo>> GetModelsAsync(CancellationToken cancellationToken)
+    {
+        var resolved = await settingsService.LoadResolvedAsync();
+        return await GetModelsAsync(resolved.Settings, resolved.ApiKey, cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<ModelInfo>> GetModelsAsync(
+        ProviderSettings settings, string apiKey, CancellationToken cancellationToken)
+    {
+        if (!Uri.TryCreate(settings.BaseUrl, UriKind.Absolute, out _))
+            throw new ProviderException("Base URL 格式无效。");
+        using var request = new HttpRequestMessage(HttpMethod.Get, settings.BaseUrl.TrimEnd('/') + "/models");
+        AddHeaders(request, settings, apiKey);
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeout.CancelAfter(TimeSpan.FromSeconds(12));
+        try
+        {
+            using var response = await httpClient.SendAsync(request, timeout.Token);
+            if (!response.IsSuccessStatusCode) throw new ProviderException(MapStatus(response.StatusCode));
+            return ParseModels(await response.Content.ReadAsStringAsync(cancellationToken));
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        { throw new ProviderException("获取模型列表超时。"); }
+        catch (HttpRequestException ex)
+        { throw new ProviderException("无法连接模型服务，请检查 Base URL 和网络连接。", ex); }
+        catch (JsonException ex)
+        { throw new ProviderException("模型服务返回了无法识别的模型列表。", ex); }
+    }
+
     public async IAsyncEnumerable<string> StreamAsync(
         ChatCompletionRequest request,
         [EnumeratorCancellation] CancellationToken cancellationToken)
@@ -68,10 +97,7 @@ public sealed class OpenAICompatibleProvider(
                 string? content;
                 try
                 {
-                    using var json = JsonDocument.Parse(data);
-                    content = json.RootElement.GetProperty("choices")[0]
-                        .GetProperty("delta").TryGetProperty("content", out var value)
-                        ? value.GetString() : null;
+                    content = ParseStreamingContent(data);
                 }
                 catch (Exception ex) when (ex is JsonException or KeyNotFoundException or InvalidOperationException)
                 {
@@ -134,9 +160,41 @@ public sealed class OpenAICompatibleProvider(
             Content = new StringContent(
                 JsonSerializer.Serialize(payload, JsonDefaults.Options), Encoding.UTF8, "application/json")
         };
+        AddHeaders(message, settings, apiKey);
+        return message;
+    }
+
+    private static void AddHeaders(HttpRequestMessage message, ProviderSettings settings, string apiKey)
+    {
         if (!string.IsNullOrWhiteSpace(apiKey))
             message.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
-        return message;
+        if (settings.ProviderId == "gemini")
+            message.Headers.TryAddWithoutValidation("x-goog-api-client", "nativetavern/0.5.0");
+        if (settings.ProviderId == "openrouter")
+            message.Headers.TryAddWithoutValidation("X-OpenRouter-Title", "NativeTavern");
+    }
+
+    public static IReadOnlyList<ModelInfo> ParseModels(string jsonText)
+    {
+        using var json = JsonDocument.Parse(jsonText);
+        if (!json.RootElement.TryGetProperty("data", out var data) || data.ValueKind != JsonValueKind.Array)
+            return [];
+        return data.EnumerateArray().Select(item =>
+        {
+            var id = item.TryGetProperty("id", out var idValue) ? idValue.GetString() ?? "" : "";
+            var name = item.TryGetProperty("name", out var nameValue) ? nameValue.GetString() : null;
+            return new ModelInfo(id, name);
+        }).Where(x => !string.IsNullOrWhiteSpace(x.Id)).OrderBy(x => x.Id).ToList();
+    }
+
+    public static string? ParseStreamingContent(string data)
+    {
+        using var json = JsonDocument.Parse(data);
+        if (!json.RootElement.TryGetProperty("choices", out var choices) ||
+            choices.ValueKind != JsonValueKind.Array || choices.GetArrayLength() == 0 ||
+            !choices[0].TryGetProperty("delta", out var delta) ||
+            !delta.TryGetProperty("content", out var content)) return null;
+        return content.ValueKind == JsonValueKind.String ? content.GetString() : null;
     }
 
     private static string MapStatus(HttpStatusCode status) => status switch

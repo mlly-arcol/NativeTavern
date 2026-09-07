@@ -2,9 +2,9 @@
 
 一个面向个人使用的 Windows 原生 AI 角色聊天客户端。
 
-## 当前版本：V0.4
+## 当前版本：V0.5
 
-当前仓库已实现基础 AI 对话、角色系统、长期聊天记录和 Prompt Engine：
+当前仓库已实现基础 AI 对话、角色系统、长期聊天记录、Prompt Engine 和多模型 Provider：
 
 - .NET 10 + WPF + CommunityToolkit.Mvvm
 - OpenAI Compatible Chat Completions
@@ -27,6 +27,12 @@
 - Prompt Preset 与模型、Temperature、Top P、Max Tokens 覆盖
 - 每个聊天独立的 Author Note
 - Prompt Studio 统一资源管理页面
+- OpenAI、OpenRouter、DeepSeek 与自定义 OpenAI-compatible API
+- Claude 原生 Messages API 与 SSE 流式回复
+- Gemini OpenAI compatibility API
+- Ollama、LM Studio、KoboldCpp 和 llama.cpp 本地服务
+- 本地服务自动扫描与远程/本地模型列表发现
+- Provider 独立默认地址、Context Length 与连接测试
 
 聊天页中选择并点击 Apply Prompt 后，Persona、激活的 Lorebook 条目、Preset Prompt 和 Author Note 会随聊天内容发送到用户配置的模型 Provider；Clear 可解除当前会话的全部 Prompt 资源绑定。
 
@@ -861,6 +867,8 @@ dotnet publish
 - OpenRouter
 - Claude
 - Gemini
+
+状态：已完成。
 
 ### V0.6
 

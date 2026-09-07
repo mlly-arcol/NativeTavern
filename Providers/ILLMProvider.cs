@@ -6,6 +6,7 @@ public interface ILLMProvider
 {
     string Id { get; }
     string DisplayName { get; }
+    Task<IReadOnlyList<ModelInfo>> GetModelsAsync(CancellationToken cancellationToken);
     IAsyncEnumerable<string> StreamAsync(ChatCompletionRequest request, CancellationToken cancellationToken);
     Task<bool> TestConnectionAsync(CancellationToken cancellationToken);
 }

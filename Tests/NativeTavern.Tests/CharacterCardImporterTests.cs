@@ -2,6 +2,7 @@ using System.Buffers.Binary;
 using System.Text;
 using NativeTavern.Importers;
 using NativeTavern.Models;
+using NativeTavern.Providers;
 using NativeTavern.Services;
 using NativeTavern.ViewModels;
 using Xunit;
@@ -125,6 +126,42 @@ public sealed class CharacterCardImporterTests
     {
         var entry = new LoreEntry { Name = "Disabled", Content = "Hidden", IsEnabled = false, IsConstant = true };
         Assert.Empty(PromptService.ActivateLoreEntries([entry], []));
+    }
+
+    [Fact]
+    public void ProviderProfilesCoverV05Targets()
+    {
+        var ids = ProviderProfile.All.Select(x => x.Id).ToHashSet();
+        Assert.True(new[] { "ollama", "lmstudio", "openrouter", "claude", "gemini" }.All(ids.Contains));
+    }
+
+    [Fact]
+    public void ParsesOpenAiCompatibleModelsAndStreamChunks()
+    {
+        var models = OpenAICompatibleProvider.ParseModels(
+            """{"data":[{"id":"z-model"},{"id":"a-model","name":"Alpha"}]}""");
+        Assert.Equal(["a-model", "z-model"], models.Select(x => x.Id));
+        Assert.Equal("Hello", OpenAICompatibleProvider.ParseStreamingContent(
+            """{"choices":[{"delta":{"content":"Hello"}}]}"""));
+    }
+
+    [Fact]
+    public void ParsesClaudeModelsAndTextDelta()
+    {
+        var models = ClaudeProvider.ParseModels(
+            """{"data":[{"id":"claude-test","display_name":"Claude Test"}]}""");
+        Assert.Equal("claude-test", Assert.Single(models).Id);
+        Assert.Equal("Hi", ClaudeProvider.ParseStreamingContent(
+            """{"type":"content_block_delta","delta":{"type":"text_delta","text":"Hi"}}"""));
+        Assert.Null(ClaudeProvider.ParseStreamingContent("""{"type":"ping"}"""));
+    }
+
+    [Fact]
+    public void ClaudeStreamErrorsBecomeProviderErrors()
+    {
+        var error = Assert.Throws<ProviderException>(() => ClaudeProvider.ParseStreamingContent(
+            """{"type":"error","error":{"message":"overloaded"}}"""));
+        Assert.Equal("overloaded", error.Message);
     }
 
     private static byte[] BuildPng(params (string Key, string Value)[] cards)
