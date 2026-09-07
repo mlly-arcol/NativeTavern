@@ -54,7 +54,11 @@ public partial class MainViewModel : ObservableObject
     private void ShowSettings() => CurrentViewModel = Settings;
 
     [RelayCommand]
-    private void ShowCharacters() => CurrentViewModel = Characters;
+    private async Task ShowCharactersAsync()
+    {
+        CurrentViewModel = Characters;
+        await Characters.RefreshAsync();
+    }
 
     [RelayCommand]
     private void ShowPromptStudio() => CurrentViewModel = PromptStudio;

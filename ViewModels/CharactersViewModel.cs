@@ -33,6 +33,8 @@ public partial class CharactersViewModel(
 
     public Task InitializeAsync() => RefreshAsync();
 
+    public Task RefreshAsync() => RefreshAsync(SelectedCharacter?.Id);
+
     public async Task ImportFileAsync(string path)
     {
         IsBusy = true;
