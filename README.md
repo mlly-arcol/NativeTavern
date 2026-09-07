@@ -2,22 +2,26 @@
 
 一个面向个人使用的 Windows 原生 AI 角色聊天客户端。
 
-## 当前版本：V0.2
+## 当前版本：V0.3
 
-当前仓库已实现 V0.1 的基础 AI 对话闭环，并加入 V0.2 角色系统：
+当前仓库已实现基础 AI 对话、角色系统和可长期使用的聊天记录管理：
 
 - .NET 10 + WPF + CommunityToolkit.Mvvm
 - OpenAI Compatible Chat Completions
 - SSE 流式回复与主动停止
 - SQLite 会话、消息和设置持久化
 - Windows DPAPI 加密 API Key
-- Chat / Settings 双页深色界面
+- Chat / Characters / Settings 三页深色界面
 - 本地文件日志与常见 HTTP 错误提示
 - 角色创建、编辑、删除、搜索、标签与收藏
 - PNG Character Card V2/V3 与 JSON Character Card 导入
 - 本地角色头像管理
 - 角色 First Message
 - 可选的角色上下文发送（默认关闭，需在 Settings 明确启用）
+- 多聊天记录创建、切换和确认删除
+- 单条消息编辑、复制和确认删除
+- 助手回复 Regenerate 与多候选 Swipe
+- Ctrl+Enter 重新生成、Esc 停止生成
 
 开发构建：dotnet build -c Release
 
@@ -820,6 +824,8 @@ dotnet publish
 - 删除
 - Regenerate
 - Swipe
+
+状态：已完成。
 
 ### V0.4
 

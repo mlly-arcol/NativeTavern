@@ -16,6 +16,14 @@ public sealed class DatabaseInitializer(DatabaseConnectionFactory connectionFact
         await using var connection = connectionFactory.CreateConnection();
         await connection.OpenAsync();
         await connection.ExecuteAsync(schema);
+        var columns = (await connection.QueryAsync<string>(
+            "SELECT name FROM pragma_table_info('ChatMessages')")).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        if (!columns.Contains("CurrentSwipeIndex"))
+        {
+            await connection.ExecuteAsync(
+                "ALTER TABLE ChatMessages ADD COLUMN CurrentSwipeIndex INTEGER NOT NULL DEFAULT 0");
+            logger.LogInformation("Migrated ChatMessages for V0.3 swipe support.");
+        }
         logger.LogInformation("Database initialized at {DatabasePath}", Helpers.AppPaths.DatabaseFile);
     }
 }

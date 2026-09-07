@@ -3,6 +3,7 @@ using System.Text;
 using NativeTavern.Importers;
 using NativeTavern.Models;
 using NativeTavern.Services;
+using NativeTavern.ViewModels;
 using Xunit;
 
 namespace NativeTavern.Tests;
@@ -74,6 +75,29 @@ public sealed class CharacterCardImporterTests
         Assert.Collection(result,
             first => Assert.Equal("user", first.Role),
             second => Assert.Equal("assistant", second.Role));
+    }
+
+    [Fact]
+    public void MessageViewModelTracksEditAndSwipeState()
+    {
+        var model = new ChatMessage
+        {
+            Role = ChatRole.Assistant,
+            Content = "First",
+            CurrentSwipeIndex = 0
+        };
+        var viewModel = new ChatMessageViewModel(model, 2);
+
+        viewModel.SetSwipeState(1, 2, "Second");
+        Assert.Equal("Second", viewModel.Content);
+        Assert.Equal("2 / 2", viewModel.SwipeDisplay);
+        Assert.True(viewModel.CanSwipeLeft);
+
+        viewModel.BeginEdit();
+        viewModel.EditText = "Edited";
+        viewModel.FinishEdit();
+        Assert.Equal("Edited", model.Content);
+        Assert.False(viewModel.IsEditing);
     }
 
     private static byte[] BuildPng(params (string Key, string Value)[] cards)

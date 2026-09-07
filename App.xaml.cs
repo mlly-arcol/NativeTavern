@@ -36,7 +36,7 @@ public partial class App : Application
         };
         try
         {
-            logger.LogInformation("NativeTavern 0.2.0 starting.");
+            logger.LogInformation("NativeTavern 0.3.0 starting.");
             await _services.GetRequiredService<DatabaseInitializer>().InitializeAsync();
             var viewModel = _services.GetRequiredService<MainViewModel>();
             await viewModel.InitializeAsync();
@@ -63,6 +63,7 @@ public partial class App : Application
         services.AddSingleton<DatabaseInitializer>();
         services.AddSingleton<ChatSessionRepository>();
         services.AddSingleton<ChatMessageRepository>();
+        services.AddSingleton<MessageSwipeRepository>();
         services.AddSingleton<SettingsRepository>();
         services.AddSingleton<CharacterRepository>();
         services.AddSingleton<ISecretProtector, DpapiSecretProtector>();

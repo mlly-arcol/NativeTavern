@@ -29,8 +29,19 @@ CREATE TABLE IF NOT EXISTS ChatMessages (
     Content TEXT NOT NULL,
     CreatedAt TEXT NOT NULL,
     UpdatedAt TEXT NULL,
+    CurrentSwipeIndex INTEGER NOT NULL DEFAULT 0,
     FOREIGN KEY (ChatSessionId) REFERENCES ChatSessions(Id) ON DELETE CASCADE
 );
 CREATE INDEX IF NOT EXISTS IX_ChatMessages_ChatSessionId ON ChatMessages(ChatSessionId);
+CREATE TABLE IF NOT EXISTS MessageSwipes (
+    Id INTEGER PRIMARY KEY AUTOINCREMENT,
+    ChatMessageId INTEGER NOT NULL,
+    SwipeIndex INTEGER NOT NULL,
+    Content TEXT NOT NULL,
+    CreatedAt TEXT NOT NULL,
+    FOREIGN KEY (ChatMessageId) REFERENCES ChatMessages(Id) ON DELETE CASCADE,
+    UNIQUE(ChatMessageId, SwipeIndex)
+);
+CREATE INDEX IF NOT EXISTS IX_MessageSwipes_ChatMessageId ON MessageSwipes(ChatMessageId);
 CREATE INDEX IF NOT EXISTS IX_ChatSessions_CharacterId ON ChatSessions(CharacterId);
 CREATE TABLE IF NOT EXISTS AppSettings (Key TEXT PRIMARY KEY, Value TEXT NOT NULL);
