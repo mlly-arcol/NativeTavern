@@ -18,6 +18,7 @@ public partial class SettingsViewModel(
     [ObservableProperty] private double _temperature = 0.8;
     [ObservableProperty] private double _topP = 1.0;
     [ObservableProperty] private int _maxTokens = 1024;
+    [ObservableProperty] private bool _includeCharacterContext;
     [ObservableProperty] private string? _statusMessage;
     [ObservableProperty] private bool _isBusy;
     private bool _clearApiKey;
@@ -33,6 +34,7 @@ public partial class SettingsViewModel(
         Temperature = resolved.Settings.Temperature;
         TopP = resolved.Settings.TopP;
         MaxTokens = resolved.Settings.MaxTokens;
+        IncludeCharacterContext = resolved.Settings.IncludeCharacterContext;
     }
 
     [RelayCommand]
@@ -91,7 +93,8 @@ public partial class SettingsViewModel(
             Model = Model.Trim(),
             Temperature = Temperature,
             TopP = TopP,
-            MaxTokens = MaxTokens
+            MaxTokens = MaxTokens,
+            IncludeCharacterContext = IncludeCharacterContext
         };
         if (!Uri.TryCreate(settings.BaseUrl, UriKind.Absolute, out _))
         {

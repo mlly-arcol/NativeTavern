@@ -2,9 +2,9 @@
 
 一个面向个人使用的 Windows 原生 AI 角色聊天客户端。
 
-## 当前版本：V0.1
+## 当前版本：V0.2
 
-当前仓库已实现 V0.1 的基础 AI 对话闭环：
+当前仓库已实现 V0.1 的基础 AI 对话闭环，并加入 V0.2 角色系统：
 
 - .NET 10 + WPF + CommunityToolkit.Mvvm
 - OpenAI Compatible Chat Completions
@@ -13,6 +13,11 @@
 - Windows DPAPI 加密 API Key
 - Chat / Settings 双页深色界面
 - 本地文件日志与常见 HTTP 错误提示
+- 角色创建、编辑、删除、搜索、标签与收藏
+- PNG Character Card V2/V3 与 JSON Character Card 导入
+- 本地角色头像管理
+- 角色 First Message
+- 可选的角色上下文发送（默认关闭，需在 Settings 明确启用）
 
 开发构建：dotnet build -c Release
 

@@ -8,6 +8,7 @@ namespace NativeTavern.Services;
 public sealed class ChatService(
     ChatSessionRepository sessionRepository,
     ChatMessageRepository messageRepository,
+    CharacterRepository characterRepository,
     SettingsService settingsService,
     ILLMProvider provider,
     ILogger<ChatService> logger)
@@ -19,13 +20,32 @@ public sealed class ChatService(
         return (session, await messageRepository.GetBySessionAsync(session.Id));
     }
 
-    public async Task<ChatSession> CreateSessionAsync()
+    public async Task<ChatSession> CreateSessionAsync(Character? character = null)
     {
         var now = DateTimeOffset.UtcNow;
-        var session = new ChatSession { CreatedAt = now, UpdatedAt = now };
+        var session = new ChatSession
+        {
+            Title = character?.Name ?? "New Chat",
+            CharacterId = character?.Id,
+            CreatedAt = now,
+            UpdatedAt = now
+        };
         await sessionRepository.CreateAsync(session);
+        if (character is not null && !string.IsNullOrWhiteSpace(character.FirstMessage))
+        {
+            await messageRepository.AddAsync(new ChatMessage
+            {
+                ChatSessionId = session.Id,
+                Role = ChatRole.Assistant,
+                Content = RenderCharacterText(character.FirstMessage, character.Name),
+                CreatedAt = now
+            });
+        }
         return session;
     }
+
+    public Task<IReadOnlyList<ChatMessage>> GetMessagesAsync(long sessionId) =>
+        messageRepository.GetBySessionAsync(sessionId);
 
     public async Task<ChatMessage> SendAsync(
         ChatSession session,
@@ -61,10 +81,32 @@ public sealed class ChatService(
             await sessionRepository.UpdateAsync(session);
         }
 
+        Character? characterContext = null;
+        if (session.CharacterId is long characterId)
+            characterContext = await characterRepository.GetAsync(characterId);
+
+        IEnumerable<ChatMessage> requestHistory = history;
+        if (characterContext is not null && !settings.IncludeCharacterContext &&
+            history.FirstOrDefault() is { Role: ChatRole.Assistant } greeting &&
+            greeting.Content == RenderCharacterText(characterContext.FirstMessage, characterContext.Name))
+        {
+            requestHistory = history.Skip(1);
+        }
+
+        var requestMessages = BuildMessages(requestHistory).ToList();
+        if (characterContext is not null && settings.IncludeCharacterContext)
+        {
+            requestMessages.Insert(0, new ChatCompletionMessage
+            {
+                Role = "system",
+                Content = BuildCharacterContext(characterContext)
+            });
+        }
+
         var request = new ChatCompletionRequest
         {
             Model = settings.Model,
-            Messages = BuildMessages(history),
+            Messages = requestMessages,
             Temperature = settings.Temperature,
             TopP = settings.TopP,
             MaxTokens = settings.MaxTokens,
@@ -99,4 +141,23 @@ public sealed class ChatService(
             Role = message.Role.ToString().ToLowerInvariant(),
             Content = message.Content
         }).ToList();
+
+    private static string BuildCharacterContext(Character character)
+    {
+        var sections = new[]
+        {
+            $"You are {character.Name}. Stay in character throughout the conversation.",
+            string.IsNullOrWhiteSpace(character.Description) ? null : "Description:" + Environment.NewLine + character.Description,
+            string.IsNullOrWhiteSpace(character.Personality) ? null : "Personality:" + Environment.NewLine + character.Personality,
+            string.IsNullOrWhiteSpace(character.Scenario) ? null : "Scenario:" + Environment.NewLine + character.Scenario,
+            string.IsNullOrWhiteSpace(character.ExampleMessages) ? null : "Example dialogue:" + Environment.NewLine + character.ExampleMessages
+        };
+        return RenderCharacterText(
+            string.Join(Environment.NewLine + Environment.NewLine, sections.Where(x => x is not null)),
+            character.Name);
+    }
+
+    private static string RenderCharacterText(string text, string characterName) =>
+        text.Replace("{{char}}", characterName, StringComparison.OrdinalIgnoreCase)
+            .Replace("{{user}}", "User", StringComparison.OrdinalIgnoreCase);
 }

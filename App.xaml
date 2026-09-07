@@ -43,5 +43,6 @@
         </Style>
         <DataTemplate DataType="{x:Type vm:ChatViewModel}"><views:ChatView /></DataTemplate>
         <DataTemplate DataType="{x:Type vm:SettingsViewModel}"><views:SettingsView /></DataTemplate>
+        <DataTemplate DataType="{x:Type vm:CharactersViewModel}"><views:CharactersView /></DataTemplate>
     </Application.Resources>
 </Application>

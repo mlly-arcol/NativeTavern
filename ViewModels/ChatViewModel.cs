@@ -43,6 +43,17 @@ public partial class ChatViewModel(
         HasProviderConfiguration = (await settingsService.LoadAsync()).IsConfigured;
     }
 
+    public async Task StartCharacterChatAsync(Character character)
+    {
+        if (IsGenerating) return;
+        _session = await chatService.CreateSessionAsync(character);
+        SessionTitle = _session.Title;
+        Messages.Clear();
+        foreach (var message in await chatService.GetMessagesAsync(_session.Id))
+            Messages.Add(new ChatMessageViewModel(message));
+        ErrorMessage = null;
+    }
+
     [RelayCommand(CanExecute = nameof(CanSend))]
     private async Task SendAsync()
     {
