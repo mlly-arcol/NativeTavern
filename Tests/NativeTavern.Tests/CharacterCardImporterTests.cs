@@ -100,6 +100,33 @@ public sealed class CharacterCardImporterTests
         Assert.False(viewModel.IsEditing);
     }
 
+    [Fact]
+    public void LorebookActivationHonorsDepthSelectivityAndPriority()
+    {
+        var history = new[]
+        {
+            new ChatMessage { Content = "The old forest contained a hidden gate." },
+            new ChatMessage { Content = "We are talking about the moon now." }
+        };
+        var entries = new[]
+        {
+            new LoreEntry { Id = 1, Name = "Too shallow", Keywords = "forest", Content = "A", Depth = 1, IsEnabled = true, Priority = 300 },
+            new LoreEntry { Id = 2, Name = "Selective", Keywords = "moon", SecondaryKeywords = "talking", Content = "B", Depth = 2, IsEnabled = true, IsSelective = true, Priority = 200 },
+            new LoreEntry { Id = 3, Name = "Constant", Content = "C", Depth = 1, IsEnabled = true, IsConstant = true, Priority = 100 }
+        };
+
+        var result = PromptService.ActivateLoreEntries(entries, history);
+
+        Assert.Equal(["Selective", "Constant"], result.Select(x => x.Name));
+    }
+
+    [Fact]
+    public void DisabledLoreEntriesNeverActivate()
+    {
+        var entry = new LoreEntry { Name = "Disabled", Content = "Hidden", IsEnabled = false, IsConstant = true };
+        Assert.Empty(PromptService.ActivateLoreEntries([entry], []));
+    }
+
     private static byte[] BuildPng(params (string Key, string Value)[] cards)
     {
         using var stream = new MemoryStream();

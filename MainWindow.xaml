@@ -11,9 +11,10 @@
                     <TextBlock Text="NativeTavern" FontSize="22" FontWeight="SemiBold" Margin="8,8,0,28" />
                     <Button Content="💬  Chat" HorizontalContentAlignment="Left" Command="{Binding ShowChatCommand}" Margin="0,0,0,10" />
                     <Button Content="👤  Characters" HorizontalContentAlignment="Left" Command="{Binding ShowCharactersCommand}" Margin="0,0,0,10" />
+                    <Button Content="📜  Prompt Studio" HorizontalContentAlignment="Left" Command="{Binding ShowPromptStudioCommand}" Margin="0,0,0,10" />
                     <Button Content="⚙  Settings" HorizontalContentAlignment="Left" Command="{Binding ShowSettingsCommand}" />
                 </StackPanel>
-                <TextBlock DockPanel.Dock="Bottom" Text="v0.3.0" Foreground="{StaticResource MutedTextBrush}" HorizontalAlignment="Center" Margin="0,0,0,8" />
+                <TextBlock DockPanel.Dock="Bottom" Text="v0.4.0" Foreground="{StaticResource MutedTextBrush}" HorizontalAlignment="Center" Margin="0,0,0,8" />
             </DockPanel>
         </Border>
         <ContentControl Grid.Column="1" Content="{Binding CurrentViewModel}" />

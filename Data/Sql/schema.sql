@@ -19,6 +19,10 @@ CREATE TABLE IF NOT EXISTS ChatSessions (
     Id INTEGER PRIMARY KEY AUTOINCREMENT,
     Title TEXT NOT NULL,
     CharacterId INTEGER NULL,
+    PersonaId INTEGER NULL,
+    LorebookId INTEGER NULL,
+    PromptPresetId INTEGER NULL,
+    AuthorNote TEXT NOT NULL DEFAULT '',
     CreatedAt TEXT NOT NULL,
     UpdatedAt TEXT NOT NULL
 );
@@ -44,4 +48,46 @@ CREATE TABLE IF NOT EXISTS MessageSwipes (
 );
 CREATE INDEX IF NOT EXISTS IX_MessageSwipes_ChatMessageId ON MessageSwipes(ChatMessageId);
 CREATE INDEX IF NOT EXISTS IX_ChatSessions_CharacterId ON ChatSessions(CharacterId);
+CREATE TABLE IF NOT EXISTS Personas (
+    Id INTEGER PRIMARY KEY AUTOINCREMENT,
+    Name TEXT NOT NULL,
+    Content TEXT NOT NULL,
+    CreatedAt TEXT NOT NULL,
+    UpdatedAt TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS Lorebooks (
+    Id INTEGER PRIMARY KEY AUTOINCREMENT,
+    Name TEXT NOT NULL,
+    Description TEXT NOT NULL,
+    IsEnabled INTEGER NOT NULL DEFAULT 1,
+    CreatedAt TEXT NOT NULL,
+    UpdatedAt TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS LoreEntries (
+    Id INTEGER PRIMARY KEY AUTOINCREMENT,
+    LorebookId INTEGER NOT NULL,
+    Name TEXT NOT NULL,
+    Keywords TEXT NOT NULL,
+    SecondaryKeywords TEXT NOT NULL,
+    Content TEXT NOT NULL,
+    Priority INTEGER NOT NULL DEFAULT 100,
+    Depth INTEGER NOT NULL DEFAULT 4,
+    IsEnabled INTEGER NOT NULL DEFAULT 1,
+    IsConstant INTEGER NOT NULL DEFAULT 0,
+    IsSelective INTEGER NOT NULL DEFAULT 0,
+    FOREIGN KEY (LorebookId) REFERENCES Lorebooks(Id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS IX_LoreEntries_LorebookId ON LoreEntries(LorebookId);
+CREATE TABLE IF NOT EXISTS PromptPresets (
+    Id INTEGER PRIMARY KEY AUTOINCREMENT,
+    Name TEXT NOT NULL,
+    SystemPrompt TEXT NOT NULL,
+    MainPrompt TEXT NOT NULL,
+    Model TEXT NOT NULL,
+    Temperature REAL NULL,
+    TopP REAL NULL,
+    MaxTokens INTEGER NULL,
+    CreatedAt TEXT NOT NULL,
+    UpdatedAt TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS AppSettings (Key TEXT PRIMARY KEY, Value TEXT NOT NULL);

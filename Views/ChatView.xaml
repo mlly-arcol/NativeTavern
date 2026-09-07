@@ -3,7 +3,7 @@
  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
  xmlns:models="clr-namespace:NativeTavern.Models">
  <Grid Margin="28">
-  <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+  <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
   <DockPanel Margin="0,0,0,18">
    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
     <ComboBox Width="250" Height="38" ItemsSource="{Binding Sessions}" SelectedItem="{Binding SelectedSession}" DisplayMemberPath="Title" Margin="0,0,10,0" ToolTip="切换聊天记录"/>
@@ -12,10 +12,20 @@
    </StackPanel>
    <StackPanel><TextBlock Text="Chat" FontSize="28" FontWeight="SemiBold"/><TextBlock Text="{Binding SessionTitle}" Foreground="{StaticResource MutedTextBrush}" Margin="0,5,0,0"/></StackPanel>
   </DockPanel>
-  <Border Grid.Row="1" Padding="14" Margin="0,0,0,14" CornerRadius="8" Background="#302A1E" Visibility="{Binding HasProviderConfiguration, Converter={StaticResource InverseBoolToVisibility}}">
+  <Border Grid.Row="1" Padding="12" Margin="0,0,0,12" CornerRadius="8" Background="{StaticResource PanelBrush}" ToolTip="Applied Persona, Lorebook, Preset and Author Note content is sent to the configured model Provider.">
+   <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="150"/><ColumnDefinition Width="150"/><ColumnDefinition Width="170"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+    <ComboBox ItemsSource="{Binding Personas}" SelectedItem="{Binding SelectedPersona}" DisplayMemberPath="Name" ToolTip="Persona (optional)" Margin="0,0,8,0"/>
+    <ComboBox Grid.Column="1" ItemsSource="{Binding Lorebooks}" SelectedItem="{Binding SelectedLorebook}" DisplayMemberPath="Name" ToolTip="Lorebook (optional)" Margin="0,0,8,0"/>
+    <ComboBox Grid.Column="2" ItemsSource="{Binding Presets}" SelectedItem="{Binding SelectedPreset}" DisplayMemberPath="Name" ToolTip="Prompt Preset (optional)" Margin="0,0,8,0"/>
+    <TextBox Grid.Column="3" Text="{Binding AuthorNote,UpdateSourceTrigger=PropertyChanged}" ToolTip="Author Note for this chat" Margin="0,0,8,0"/>
+    <Button Grid.Column="4" Content="Apply Prompt" Command="{Binding ApplyPromptContextCommand}"/>
+    <Button Grid.Column="5" Content="Clear" Command="{Binding ClearPromptContextCommand}" Margin="0"/>
+   </Grid>
+  </Border>
+  <Border Grid.Row="2" Padding="14" Margin="0,0,0,14" CornerRadius="8" Background="#302A1E" Visibility="{Binding HasProviderConfiguration, Converter={StaticResource InverseBoolToVisibility}}">
    <DockPanel><Button DockPanel.Dock="Right" Content="Go to Settings" Command="{Binding OpenSettingsCommand}"/><TextBlock Text="尚未配置模型 Provider，请先前往 Settings。" VerticalAlignment="Center"/></DockPanel>
   </Border>
-  <ListBox x:Name="MessageList" Grid.Row="2" ItemsSource="{Binding Messages}" Background="Transparent" BorderThickness="0" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+  <ListBox x:Name="MessageList" Grid.Row="3" ItemsSource="{Binding Messages}" Background="Transparent" BorderThickness="0" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
    <ListBox.ItemContainerStyle><Style TargetType="ListBoxItem"><Setter Property="HorizontalContentAlignment" Value="Stretch"/><Setter Property="Padding" Value="0"/><Setter Property="Margin" Value="0,0,0,14"/><Setter Property="Background" Value="Transparent"/><Setter Property="BorderThickness" Value="0"/></Style></ListBox.ItemContainerStyle>
    <ListBox.ItemTemplate>
     <DataTemplate>
@@ -49,7 +59,7 @@
     </DataTemplate>
    </ListBox.ItemTemplate>
   </ListBox>
-  <StackPanel Grid.Row="3" Margin="0,16,0,0">
+  <StackPanel Grid.Row="4" Margin="0,16,0,0">
    <Border Background="#48262B" CornerRadius="6" Padding="10" Margin="0,0,0,10" Visibility="{Binding ErrorMessage, Converter={StaticResource StringToVisibility}}"><TextBlock Text="{Binding ErrorMessage}" Foreground="#FFB8BE" TextWrapping="Wrap"/></Border>
    <TextBox Text="{Binding InputText, UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True" MinHeight="76" MaxHeight="180" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" PreviewKeyDown="InputBox_OnPreviewKeyDown" ToolTip="Enter 发送，Shift+Enter 换行，Ctrl+Enter 重新生成，Esc 停止"/>
    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0"><Button Content="Stop" Command="{Binding StopCommand}"/><Button Content="Send" Command="{Binding SendCommand}" Background="{StaticResource AccentBrush}" Margin="0"/></StackPanel>

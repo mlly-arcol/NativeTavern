@@ -10,6 +10,7 @@ public sealed class ChatService(
     ChatMessageRepository messageRepository,
     MessageSwipeRepository swipeRepository,
     CharacterRepository characterRepository,
+    PromptService promptService,
     SettingsService settingsService,
     ILLMProvider provider,
     ILogger<ChatService> logger)
@@ -57,6 +58,17 @@ public sealed class ChatService(
 
     public Task DeleteSessionAsync(long id) => sessionRepository.DeleteAsync(id);
     public Task DeleteMessageAsync(long id) => messageRepository.DeleteAsync(id);
+
+    public async Task UpdateSessionPromptAsync(
+        ChatSession session, long? personaId, long? lorebookId, long? presetId, string authorNote)
+    {
+        session.PersonaId = personaId;
+        session.LorebookId = lorebookId;
+        session.PromptPresetId = presetId;
+        session.AuthorNote = authorNote;
+        session.UpdatedAt = DateTimeOffset.UtcNow;
+        await sessionRepository.UpdateAsync(session);
+    }
 
     public async Task UpdateMessageAsync(ChatMessage message)
     {
@@ -227,19 +239,12 @@ public sealed class ChatService(
             greeting.Content == RenderCharacterText(characterContext.FirstMessage, characterContext.Name))
             requestHistory = historyList.Skip(1);
 
-        var requestMessages = BuildMessages(requestHistory).ToList();
-        if (characterContext is not null && settings.IncludeCharacterContext)
-        {
-            requestMessages.Insert(0, new ChatCompletionMessage
-            {
-                Role = "system", Content = BuildCharacterContext(characterContext)
-            });
-        }
+        var prompt = await promptService.BuildAsync(session, requestHistory, settings);
         return new ChatCompletionRequest
         {
-            Model = settings.Model, Messages = requestMessages,
-            Temperature = settings.Temperature, TopP = settings.TopP,
-            MaxTokens = settings.MaxTokens, Stream = true
+            Model = prompt.Model, Messages = prompt.Messages,
+            Temperature = prompt.Temperature, TopP = prompt.TopP,
+            MaxTokens = prompt.MaxTokens, Stream = true
         };
     }
 
@@ -253,20 +258,6 @@ public sealed class ChatService(
             Content = message.Content, CreatedAt = message.CreatedAt
         });
         return await swipeRepository.GetByMessageAsync(message.Id);
-    }
-
-    private static string BuildCharacterContext(Character character)
-    {
-        var sections = new[]
-        {
-            $"You are {character.Name}. Stay in character throughout the conversation.",
-            string.IsNullOrWhiteSpace(character.Description) ? null : "Description:" + Environment.NewLine + character.Description,
-            string.IsNullOrWhiteSpace(character.Personality) ? null : "Personality:" + Environment.NewLine + character.Personality,
-            string.IsNullOrWhiteSpace(character.Scenario) ? null : "Scenario:" + Environment.NewLine + character.Scenario,
-            string.IsNullOrWhiteSpace(character.ExampleMessages) ? null : "Example dialogue:" + Environment.NewLine + character.ExampleMessages
-        };
-        return RenderCharacterText(
-            string.Join(Environment.NewLine + Environment.NewLine, sections.Where(x => x is not null)), character.Name);
     }
 
     private static string RenderCharacterText(string text, string characterName) =>

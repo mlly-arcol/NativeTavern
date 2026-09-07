@@ -4,6 +4,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
 using NativeTavern.Models;
+using NativeTavern.Data.Repositories;
 using NativeTavern.Providers;
 using NativeTavern.Services;
 
@@ -11,11 +12,15 @@ namespace NativeTavern.ViewModels;
 
 public partial class ChatViewModel(
     ChatService chatService,
+    PromptRepository promptRepository,
     SettingsService settingsService,
     ILogger<ChatViewModel> logger) : ObservableObject
 {
     public ObservableCollection<ChatMessageViewModel> Messages { get; } = [];
     public ObservableCollection<ChatSession> Sessions { get; } = [];
+    public ObservableCollection<Persona> Personas { get; } = [];
+    public ObservableCollection<Lorebook> Lorebooks { get; } = [];
+    public ObservableCollection<PromptPreset> Presets { get; } = [];
 
     [ObservableProperty] private string _inputText = string.Empty;
     [ObservableProperty] private bool _isGenerating;
@@ -23,6 +28,10 @@ public partial class ChatViewModel(
     [ObservableProperty] private string _sessionTitle = "New Chat";
     [ObservableProperty] private bool _hasProviderConfiguration;
     [ObservableProperty] private ChatSession? _selectedSession;
+    [ObservableProperty] private Persona? _selectedPersona;
+    [ObservableProperty] private Lorebook? _selectedLorebook;
+    [ObservableProperty] private PromptPreset? _selectedPreset;
+    [ObservableProperty] private string _authorNote = string.Empty;
 
     private ChatSession? _session;
     private CancellationTokenSource? _generationCancellation;
@@ -34,6 +43,7 @@ public partial class ChatViewModel(
     {
         var sessions = await chatService.GetSessionsAsync();
         var session = sessions.FirstOrDefault() ?? await chatService.CreateSessionAsync();
+        await RefreshPromptOptionsAsync();
         await RefreshSessionsAsync(session.Id);
         await LoadSessionAsync(session);
         await RefreshConfigurationAsync();
@@ -41,6 +51,42 @@ public partial class ChatViewModel(
 
     public async Task RefreshConfigurationAsync() =>
         HasProviderConfiguration = (await settingsService.LoadAsync()).IsConfigured;
+
+    public async Task RefreshPromptOptionsAsync()
+    {
+        var personaId = SelectedPersona?.Id ?? _session?.PersonaId;
+        var lorebookId = SelectedLorebook?.Id ?? _session?.LorebookId;
+        var presetId = SelectedPreset?.Id ?? _session?.PromptPresetId;
+        Personas.Clear();
+        foreach (var item in await promptRepository.GetPersonasAsync()) Personas.Add(item);
+        Lorebooks.Clear();
+        foreach (var item in await promptRepository.GetLorebooksAsync()) Lorebooks.Add(item);
+        Presets.Clear();
+        foreach (var item in await promptRepository.GetPresetsAsync()) Presets.Add(item);
+        SelectedPersona = Personas.FirstOrDefault(x => x.Id == personaId);
+        SelectedLorebook = Lorebooks.FirstOrDefault(x => x.Id == lorebookId);
+        SelectedPreset = Presets.FirstOrDefault(x => x.Id == presetId);
+    }
+
+    [RelayCommand]
+    private async Task ApplyPromptContextAsync()
+    {
+        if (_session is null || IsGenerating) return;
+        await chatService.UpdateSessionPromptAsync(
+            _session, SelectedPersona?.Id, SelectedLorebook?.Id, SelectedPreset?.Id, AuthorNote.Trim());
+        ErrorMessage = null;
+        await RefreshSessionsAsync(_session.Id);
+    }
+
+    [RelayCommand]
+    private async Task ClearPromptContextAsync()
+    {
+        SelectedPersona = null;
+        SelectedLorebook = null;
+        SelectedPreset = null;
+        AuthorNote = string.Empty;
+        await ApplyPromptContextAsync();
+    }
 
     public async Task StartCharacterChatAsync(Character character)
     {
@@ -254,6 +300,10 @@ public partial class ChatViewModel(
         _session = session;
         SessionTitle = session.Title;
         SetSelectedSession(session.Id);
+        SelectedPersona = Personas.FirstOrDefault(x => x.Id == session.PersonaId);
+        SelectedLorebook = Lorebooks.FirstOrDefault(x => x.Id == session.LorebookId);
+        SelectedPreset = Presets.FirstOrDefault(x => x.Id == session.PromptPresetId);
+        AuthorNote = session.AuthorNote;
         Messages.Clear();
         foreach (var message in await chatService.GetMessagesAsync(session.Id))
             Messages.Add(new ChatMessageViewModel(message, await chatService.GetSwipeCountAsync(message)));

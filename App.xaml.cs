@@ -36,7 +36,7 @@ public partial class App : Application
         };
         try
         {
-            logger.LogInformation("NativeTavern 0.3.0 starting.");
+            logger.LogInformation("NativeTavern 0.4.0 starting.");
             await _services.GetRequiredService<DatabaseInitializer>().InitializeAsync();
             var viewModel = _services.GetRequiredService<MainViewModel>();
             await viewModel.InitializeAsync();
@@ -66,16 +66,19 @@ public partial class App : Application
         services.AddSingleton<MessageSwipeRepository>();
         services.AddSingleton<SettingsRepository>();
         services.AddSingleton<CharacterRepository>();
+        services.AddSingleton<PromptRepository>();
         services.AddSingleton<ISecretProtector, DpapiSecretProtector>();
         services.AddSingleton<SettingsService>();
         services.AddSingleton<Importers.CharacterCardImporter>();
         services.AddSingleton<CharacterService>();
+        services.AddSingleton<PromptService>();
         services.AddHttpClient<OpenAICompatibleProvider>(client => client.Timeout = Timeout.InfiniteTimeSpan);
         services.AddSingleton<ILLMProvider>(provider => provider.GetRequiredService<OpenAICompatibleProvider>());
         services.AddSingleton<ChatService>();
         services.AddSingleton<ChatViewModel>();
         services.AddSingleton<SettingsViewModel>();
         services.AddSingleton<CharactersViewModel>();
+        services.AddSingleton<PromptStudioViewModel>();
         services.AddSingleton<MainViewModel>();
         services.AddSingleton<MainWindow>();
     }

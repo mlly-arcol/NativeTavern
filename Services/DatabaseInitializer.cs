@@ -24,6 +24,20 @@ public sealed class DatabaseInitializer(DatabaseConnectionFactory connectionFact
                 "ALTER TABLE ChatMessages ADD COLUMN CurrentSwipeIndex INTEGER NOT NULL DEFAULT 0");
             logger.LogInformation("Migrated ChatMessages for V0.3 swipe support.");
         }
+        var sessionColumns = (await connection.QueryAsync<string>(
+            "SELECT name FROM pragma_table_info('ChatSessions')")).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var migrations = new Dictionary<string, string>
+        {
+            ["PersonaId"] = "ALTER TABLE ChatSessions ADD COLUMN PersonaId INTEGER NULL",
+            ["LorebookId"] = "ALTER TABLE ChatSessions ADD COLUMN LorebookId INTEGER NULL",
+            ["PromptPresetId"] = "ALTER TABLE ChatSessions ADD COLUMN PromptPresetId INTEGER NULL",
+            ["AuthorNote"] = "ALTER TABLE ChatSessions ADD COLUMN AuthorNote TEXT NOT NULL DEFAULT ''"
+        };
+        foreach (var migration in migrations.Where(x => !sessionColumns.Contains(x.Key)))
+        {
+            await connection.ExecuteAsync(migration.Value);
+            logger.LogInformation("Migrated ChatSessions column {ColumnName} for V0.4.", migration.Key);
+        }
         logger.LogInformation("Database initialized at {DatabasePath}", Helpers.AppPaths.DatabaseFile);
     }
 }

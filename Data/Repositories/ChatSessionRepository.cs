@@ -9,8 +9,8 @@ public sealed class ChatSessionRepository(DatabaseConnectionFactory connectionFa
     {
         await using var connection = connectionFactory.CreateConnection();
         session.Id = await connection.ExecuteScalarAsync<long>(
-            "INSERT INTO ChatSessions(Title,CharacterId,CreatedAt,UpdatedAt) " +
-            "VALUES(@Title,@CharacterId,@CreatedAt,@UpdatedAt); SELECT last_insert_rowid();",
+            "INSERT INTO ChatSessions(Title,CharacterId,PersonaId,LorebookId,PromptPresetId,AuthorNote,CreatedAt,UpdatedAt) " +
+            "VALUES(@Title,@CharacterId,@PersonaId,@LorebookId,@PromptPresetId,@AuthorNote,@CreatedAt,@UpdatedAt); SELECT last_insert_rowid();",
             ToParameters(session));
         return session.Id;
     }
@@ -35,7 +35,8 @@ public sealed class ChatSessionRepository(DatabaseConnectionFactory connectionFa
     {
         await using var connection = connectionFactory.CreateConnection();
         await connection.ExecuteAsync(
-            "UPDATE ChatSessions SET Title=@Title,CharacterId=@CharacterId,UpdatedAt=@UpdatedAt WHERE Id=@Id",
+            "UPDATE ChatSessions SET Title=@Title,CharacterId=@CharacterId,PersonaId=@PersonaId,LorebookId=@LorebookId," +
+            "PromptPresetId=@PromptPresetId,AuthorNote=@AuthorNote,UpdatedAt=@UpdatedAt WHERE Id=@Id",
             ToParameters(session));
     }
 
@@ -47,7 +48,8 @@ public sealed class ChatSessionRepository(DatabaseConnectionFactory connectionFa
 
     private static object ToParameters(ChatSession value) => new
     {
-        value.Id, value.Title, value.CharacterId,
+        value.Id, value.Title, value.CharacterId, value.PersonaId, value.LorebookId,
+        value.PromptPresetId, value.AuthorNote,
         CreatedAt = value.CreatedAt.ToString("O"),
         UpdatedAt = value.UpdatedAt.ToString("O")
     };
@@ -57,11 +59,16 @@ public sealed class ChatSessionRepository(DatabaseConnectionFactory connectionFa
         public long Id { get; init; }
         public string Title { get; init; } = string.Empty;
         public long? CharacterId { get; init; }
+        public long? PersonaId { get; init; }
+        public long? LorebookId { get; init; }
+        public long? PromptPresetId { get; init; }
+        public string AuthorNote { get; init; } = string.Empty;
         public string CreatedAt { get; init; } = string.Empty;
         public string UpdatedAt { get; init; } = string.Empty;
         public ChatSession ToModel() => new()
         {
-            Id = Id, Title = Title, CharacterId = CharacterId,
+            Id = Id, Title = Title, CharacterId = CharacterId, PersonaId = PersonaId,
+            LorebookId = LorebookId, PromptPresetId = PromptPresetId, AuthorNote = AuthorNote,
             CreatedAt = DateTimeOffset.Parse(CreatedAt),
             UpdatedAt = DateTimeOffset.Parse(UpdatedAt)
         };

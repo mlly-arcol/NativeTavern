@@ -2,9 +2,9 @@
 
 一个面向个人使用的 Windows 原生 AI 角色聊天客户端。
 
-## 当前版本：V0.3
+## 当前版本：V0.4
 
-当前仓库已实现基础 AI 对话、角色系统和可长期使用的聊天记录管理：
+当前仓库已实现基础 AI 对话、角色系统、长期聊天记录和 Prompt Engine：
 
 - .NET 10 + WPF + CommunityToolkit.Mvvm
 - OpenAI Compatible Chat Completions
@@ -22,6 +22,13 @@
 - 单条消息编辑、复制和确认删除
 - 助手回复 Regenerate 与多候选 Swipe
 - Ctrl+Enter 重新生成、Esc 停止生成
+- Persona 创建、编辑、删除与会话绑定
+- Lorebook 与关键词、次级关键词、Priority、Depth 激活
+- Prompt Preset 与模型、Temperature、Top P、Max Tokens 覆盖
+- 每个聊天独立的 Author Note
+- Prompt Studio 统一资源管理页面
+
+聊天页中选择并点击 Apply Prompt 后，Persona、激活的 Lorebook 条目、Preset Prompt 和 Author Note 会随聊天内容发送到用户配置的模型 Provider；Clear 可解除当前会话的全部 Prompt 资源绑定。
 
 开发构建：dotnet build -c Release
 
@@ -840,6 +847,8 @@ dotnet publish
 - Prompt Preset
 - Author Note
 - Prompt Engine
+
+状态：已完成。
 
 ### V0.5
 
