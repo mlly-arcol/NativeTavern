@@ -56,6 +56,8 @@ public sealed class ChatService(
     public Task<IReadOnlyList<ChatMessage>> GetMessagesAsync(long sessionId) =>
         messageRepository.GetBySessionAsync(sessionId);
 
+    public Task<Character?> GetCharacterAsync(long characterId) => characterRepository.GetAsync(characterId);
+
     public Task<IReadOnlyList<ChatAttachment>> GetAttachmentsAsync(long messageId) => attachmentRepository.GetByMessageAsync(messageId);
 
     public async Task<PromptBuildResult> GetPromptPreviewAsync(ChatSession session)

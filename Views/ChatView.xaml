@@ -94,8 +94,11 @@
       <Border x:Name="MessageBubble" Padding="16,13" CornerRadius="18" MaxWidth="820">
        <Grid>
         <Grid.ColumnDefinitions><ColumnDefinition Width="32"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-        <Border x:Name="Avatar" Width="28" Height="28" CornerRadius="9" Background="{StaticResource AccentBrush}" VerticalAlignment="Top">
-         <TextBlock x:Name="AvatarLetter" Text="N" Foreground="White" FontWeight="Bold" FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+        <Border x:Name="Avatar" Width="28" Height="28" CornerRadius="9" Background="{StaticResource AccentBrush}" VerticalAlignment="Top" ClipToBounds="True">
+         <Grid>
+          <Image x:Name="CharacterAvatar" Source="{Binding AssistantAvatarPath}" Stretch="UniformToFill" Visibility="{Binding HasAssistantAvatar, Converter={StaticResource BoolToVisibility}}"/>
+          <TextBlock x:Name="AvatarLetter" Text="N" Foreground="White" FontWeight="Bold" FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+         </Grid>
         </Border>
         <StackPanel Grid.Column="1" Margin="10,0,0,0">
          <TextBlock Text="{Binding RoleLabel}" FontWeight="SemiBold" FontSize="13" Margin="0,3,0,7"/>
@@ -138,6 +141,9 @@
        </Border.Style>
       </Border>
       <DataTemplate.Triggers>
+       <DataTrigger Binding="{Binding HasAssistantAvatar}" Value="True">
+        <Setter TargetName="AvatarLetter" Property="Visibility" Value="Collapsed"/>
+       </DataTrigger>
        <DataTrigger Binding="{Binding Role}" Value="{x:Static models:ChatRole.User}">
        <Setter TargetName="Avatar" Property="Background" Value="#D8DADF"/>
         <Setter TargetName="AvatarLetter" Property="Foreground" Value="{StaticResource TextBrush}"/>

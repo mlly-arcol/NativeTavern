@@ -6,19 +6,33 @@ namespace NativeTavern.ViewModels;
 
 public partial class ChatMessageViewModel : ObservableObject
 {
-    public ChatMessageViewModel(ChatMessage model, int swipeCount = 0, IEnumerable<ChatAttachment>? attachments = null)
+    private const string DefaultAvatarPath = "/NativeTavern;component/Assets/NativeTavern.png";
+    private readonly string _assistantName;
+    private readonly string _assistantAvatarPath;
+
+    public ChatMessageViewModel(
+        ChatMessage model,
+        int swipeCount = 0,
+        IEnumerable<ChatAttachment>? attachments = null,
+        string? assistantName = null,
+        string? assistantAvatarPath = null)
     {
         Model = model;
         _content = model.Content;
         _editText = model.Content;
         _swipeCount = swipeCount;
+        _assistantName = string.IsNullOrWhiteSpace(assistantName) ? "NativeTavern" : assistantName;
+        _assistantAvatarPath = !string.IsNullOrWhiteSpace(assistantAvatarPath) && File.Exists(assistantAvatarPath)
+            ? assistantAvatarPath : DefaultAvatarPath;
         Attachments = new ObservableCollection<ChatAttachment>(attachments ?? []);
     }
 
     public ChatMessage Model { get; }
     public ChatRole Role => Model.Role;
     public bool IsAssistant => Role == ChatRole.Assistant;
-    public string RoleLabel => Role == ChatRole.User ? "You" : "Assistant";
+    public string RoleLabel => Role == ChatRole.User ? "You" : _assistantName;
+    public string AssistantAvatarPath => IsAssistant ? _assistantAvatarPath : string.Empty;
+    public bool HasAssistantAvatar => IsAssistant;
     public string SwipeDisplay => IsAssistant && SwipeCount > 0
         ? $"{Model.CurrentSwipeIndex + 1} / {SwipeCount}" : string.Empty;
     public bool CanSwipeLeft => IsAssistant && Model.CurrentSwipeIndex > 0;

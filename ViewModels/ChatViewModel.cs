@@ -35,6 +35,8 @@ public partial class ChatViewModel(
     [ObservableProperty] private PromptPreset? _selectedPreset;
     [ObservableProperty] private string _authorNote = string.Empty;
     [ObservableProperty] private int _estimatedPromptTokens;
+    [ObservableProperty] private string _currentAssistantName = "NativeTavern";
+    [ObservableProperty] private string _currentAssistantAvatarPath = string.Empty;
 
     private ChatSession? _session;
     private CancellationTokenSource? _generationCancellation;
@@ -125,7 +127,10 @@ public partial class ChatViewModel(
                     await Application.Current.Dispatcher.InvokeAsync(() =>
                     {
                         Messages.Add(new ChatMessageViewModel(user, attachments: attachments));
-                        assistantViewModel = new ChatMessageViewModel(assistant);
+                        assistantViewModel = new ChatMessageViewModel(
+                            assistant,
+                            assistantName: CurrentAssistantName,
+                            assistantAvatarPath: CurrentAssistantAvatarPath);
                         Messages.Add(assistantViewModel);
                         SessionTitle = _session.Title;
                     });
@@ -334,6 +339,10 @@ public partial class ChatViewModel(
     private async Task LoadSessionAsync(ChatSession session)
     {
         _session = session;
+        var character = session.CharacterId is long characterId
+            ? await chatService.GetCharacterAsync(characterId) : null;
+        CurrentAssistantName = character?.Name ?? "NativeTavern";
+        CurrentAssistantAvatarPath = character?.AvatarPath ?? string.Empty;
         SessionTitle = session.Title;
         SetSelectedSession(session.Id);
         SelectedPersona = Personas.FirstOrDefault(x => x.Id == session.PersonaId);
@@ -342,7 +351,12 @@ public partial class ChatViewModel(
         AuthorNote = session.AuthorNote;
         Messages.Clear();
         foreach (var message in await chatService.GetMessagesAsync(session.Id))
-            Messages.Add(new ChatMessageViewModel(message, await chatService.GetSwipeCountAsync(message), await chatService.GetAttachmentsAsync(message.Id)));
+            Messages.Add(new ChatMessageViewModel(
+                message,
+                await chatService.GetSwipeCountAsync(message),
+                await chatService.GetAttachmentsAsync(message.Id),
+                CurrentAssistantName,
+                CurrentAssistantAvatarPath));
         await RefreshTokenEstimateAsync();
     }
 
