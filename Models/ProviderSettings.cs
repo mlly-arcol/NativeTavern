@@ -2,6 +2,7 @@ namespace NativeTavern.Models;
 
 public sealed class ProviderSettings
 {
+    public string LanguageCode { get; set; } = "zh-CN";
     public string ProviderId { get; set; } = "openai-compatible";
     public string BaseUrl { get; set; } = "https://api.openai.com/v1";
     public string ApiKeyEncrypted { get; set; } = string.Empty;

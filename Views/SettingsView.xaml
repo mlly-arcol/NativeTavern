@@ -4,21 +4,22 @@
   <Grid.RowDefinitions>
    <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
    <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
-   <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
+   <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
   </Grid.RowDefinitions>
   <TextBlock Grid.ColumnSpan="2" Text="Settings" FontSize="28" FontWeight="SemiBold" Margin="0,0,0,26"/>
-  <TextBlock Grid.Row="1" Text="Provider" VerticalAlignment="Center"/><ComboBox Grid.Row="1" Grid.Column="1" ItemsSource="{Binding ProviderProfiles}" SelectedItem="{Binding SelectedProvider}" DisplayMemberPath="DisplayName" Margin="0,0,0,14"/>
-  <TextBlock Grid.Row="2" Text="Base URL" VerticalAlignment="Center"/><TextBox Grid.Row="2" Grid.Column="1" Text="{Binding BaseUrl,UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,14"/>
-  <TextBlock Grid.Row="3" Text="API Key" VerticalAlignment="Center"/><Grid Grid.Row="3" Grid.Column="1" Margin="0,0,0,14"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><PasswordBox x:Name="ApiKeyBox" PasswordChanged="ApiKeyBox_OnPasswordChanged"/><Button Grid.Column="1" Content="Clear" Command="{Binding ClearApiKeyCommand}" Margin="8,0,0,0"/></Grid>
-  <TextBlock Grid.Row="4" Text="Model" VerticalAlignment="Center"/><Grid Grid.Row="4" Grid.Column="1" Margin="0,0,0,14"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><ComboBox IsEditable="True" ItemsSource="{Binding AvailableModels}" DisplayMemberPath="Id" TextSearch.TextPath="Id" Text="{Binding Model,UpdateSourceTrigger=PropertyChanged}"/><Button Grid.Column="1" Content="Discover Models" Command="{Binding DiscoverModelsCommand}" Margin="8,0,0,0"/></Grid>
-  <TextBlock Grid.Row="5" Text="Temperature" VerticalAlignment="Center"/><TextBox Grid.Row="5" Grid.Column="1" Text="{Binding Temperature,UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,14"/>
-  <TextBlock Grid.Row="6" Text="Top P" VerticalAlignment="Center"/><TextBox Grid.Row="6" Grid.Column="1" Text="{Binding TopP,UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,14"/>
-  <TextBlock Grid.Row="7" Text="Max Tokens" VerticalAlignment="Center"/><TextBox Grid.Row="7" Grid.Column="1" Text="{Binding MaxTokens,UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,14"/>
-  <TextBlock Grid.Row="8" Text="Context Length" VerticalAlignment="Center"/><TextBox Grid.Row="8" Grid.Column="1" Text="{Binding ContextLength,UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,18" ToolTip="Reference context window; local server context size is configured by the server"/>
-  <TextBlock Grid.Row="9" Text="Character Context" VerticalAlignment="Top"/><CheckBox Grid.Row="9" Grid.Column="1" IsChecked="{Binding IncludeCharacterContext}" Foreground="{StaticResource TextBrush}" Margin="2,5,0,18" Content="Include the selected character card and First Message in model requests"/>
-  <TextBlock Grid.Row="10" Text="Knowledge Context" VerticalAlignment="Top"/><CheckBox Grid.Row="10" Grid.Column="1" IsChecked="{Binding IncludeKnowledgeContext}" Foreground="{StaticResource TextBrush}" Margin="2,5,0,18" Content="Allow matched knowledge-base excerpts to be sent in model requests"/>
-  <TextBlock Grid.Row="11" Text="Image Context" VerticalAlignment="Top"/><CheckBox Grid.Row="11" Grid.Column="1" IsChecked="{Binding IncludeImageContext}" Foreground="{StaticResource TextBrush}" Margin="2,5,0,18" Content="Allow attached images to be sent in model requests"/>
-  <TextBlock Grid.Row="12" Text="Local Models" VerticalAlignment="Top"/><StackPanel Grid.Row="12" Grid.Column="1" Margin="0,0,0,18">
+  <TextBlock Grid.Row="1" Text="Interface Language" VerticalAlignment="Center"/><ComboBox Grid.Row="1" Grid.Column="1" ItemsSource="{Binding Languages}" SelectedItem="{Binding SelectedLanguage}" DisplayMemberPath="DisplayName" Margin="0,0,0,14"/>
+  <TextBlock Grid.Row="2" Text="Provider" VerticalAlignment="Center"/><ComboBox Grid.Row="2" Grid.Column="1" ItemsSource="{Binding ProviderProfiles}" SelectedItem="{Binding SelectedProvider}" DisplayMemberPath="DisplayName" Margin="0,0,0,14"/>
+  <TextBlock Grid.Row="3" Text="Base URL" VerticalAlignment="Center"/><TextBox Grid.Row="3" Grid.Column="1" Text="{Binding BaseUrl,UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,14"/>
+  <TextBlock Grid.Row="4" Text="API Key" VerticalAlignment="Center"/><Grid Grid.Row="4" Grid.Column="1" Margin="0,0,0,14"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><PasswordBox x:Name="ApiKeyBox" PasswordChanged="ApiKeyBox_OnPasswordChanged"/><Button Grid.Column="1" Content="Clear" Command="{Binding ClearApiKeyCommand}" Margin="8,0,0,0"/></Grid>
+  <TextBlock Grid.Row="5" Text="Model" VerticalAlignment="Center"/><Grid Grid.Row="5" Grid.Column="1" Margin="0,0,0,14"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><ComboBox IsEditable="True" ItemsSource="{Binding AvailableModels}" DisplayMemberPath="Id" TextSearch.TextPath="Id" Text="{Binding Model,UpdateSourceTrigger=PropertyChanged}"/><Button Grid.Column="1" Content="Discover Models" Command="{Binding DiscoverModelsCommand}" Margin="8,0,0,0"/></Grid>
+  <TextBlock Grid.Row="6" Text="Temperature" VerticalAlignment="Center"/><TextBox Grid.Row="6" Grid.Column="1" Text="{Binding Temperature,UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,14"/>
+  <TextBlock Grid.Row="7" Text="Top P" VerticalAlignment="Center"/><TextBox Grid.Row="7" Grid.Column="1" Text="{Binding TopP,UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,14"/>
+  <TextBlock Grid.Row="8" Text="Max Tokens" VerticalAlignment="Center"/><TextBox Grid.Row="8" Grid.Column="1" Text="{Binding MaxTokens,UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,14"/>
+  <TextBlock Grid.Row="9" Text="Context Length" VerticalAlignment="Center"/><TextBox Grid.Row="9" Grid.Column="1" Text="{Binding ContextLength,UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,18" ToolTip="Reference context window; local server context size is configured by the server"/>
+  <TextBlock Grid.Row="10" Text="Character Context" VerticalAlignment="Top"/><CheckBox Grid.Row="10" Grid.Column="1" IsChecked="{Binding IncludeCharacterContext}" Foreground="{StaticResource TextBrush}" Margin="2,5,0,18" Content="Include the selected character card and First Message in model requests"/>
+  <TextBlock Grid.Row="11" Text="Knowledge Context" VerticalAlignment="Top"/><CheckBox Grid.Row="11" Grid.Column="1" IsChecked="{Binding IncludeKnowledgeContext}" Foreground="{StaticResource TextBrush}" Margin="2,5,0,18" Content="Allow matched knowledge-base excerpts to be sent in model requests"/>
+  <TextBlock Grid.Row="12" Text="Image Context" VerticalAlignment="Top"/><CheckBox Grid.Row="12" Grid.Column="1" IsChecked="{Binding IncludeImageContext}" Foreground="{StaticResource TextBrush}" Margin="2,5,0,18" Content="Allow attached images to be sent in model requests"/>
+  <TextBlock Grid.Row="13" Text="Local Models" VerticalAlignment="Top"/><StackPanel Grid.Row="13" Grid.Column="1" Margin="0,0,0,18">
    <CheckBox Content="Scan local services at startup" IsChecked="{Binding AutoScanLocalModels}" Foreground="{StaticResource TextBrush}" Margin="2,0,0,10"/>
    <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
     <ComboBox ItemsSource="{Binding DetectedServices}" SelectedItem="{Binding SelectedDetectedService}" DisplayMemberPath="DisplayName"/>
@@ -26,7 +27,7 @@
     <Button Grid.Column="2" Content="Use Selected" Command="{Binding UseDetectedServiceCommand}" Margin="0"/>
    </Grid>
   </StackPanel>
-  <StackPanel Grid.Row="13" Grid.Column="1" Orientation="Horizontal"><Button Content="Test Connection" Command="{Binding TestConnectionCommand}"/><Button Content="Save" Command="{Binding SaveCommand}" Style="{StaticResource PrimaryButtonStyle}"/></StackPanel>
-  <TextBlock Grid.Row="14" Grid.Column="1" Text="{Binding StatusMessage}" Margin="0,16,0,0" TextWrapping="Wrap" Foreground="{StaticResource MutedTextBrush}"/>
+  <StackPanel Grid.Row="14" Grid.Column="1" Orientation="Horizontal"><Button Content="Test Connection" Command="{Binding TestConnectionCommand}"/><Button Content="Save" Command="{Binding SaveCommand}" Style="{StaticResource PrimaryButtonStyle}"/></StackPanel>
+  <TextBlock Grid.Row="15" Grid.Column="1" Text="{Binding StatusMessage}" Margin="0,16,0,0" TextWrapping="Wrap" Foreground="{StaticResource MutedTextBrush}"/>
  </Grid></ScrollViewer>
 </UserControl>

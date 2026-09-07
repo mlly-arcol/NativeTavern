@@ -10,15 +10,22 @@ namespace NativeTavern.ViewModels;
 
 public partial class SettingsViewModel(
     SettingsService settingsService,
+    LocalizationService localizationService,
     ProviderRouter provider,
     ProviderDiscoveryService discoveryService,
     ILogger<SettingsViewModel> logger) : ObservableObject
 {
+    public IReadOnlyList<LanguageOption> Languages { get; } =
+    [
+        new(LocalizationService.Chinese, "中文"),
+        new(LocalizationService.English, "English")
+    ];
     public IReadOnlyList<ProviderProfile> ProviderProfiles { get; } = ProviderProfile.All;
     public ObservableCollection<ModelInfo> AvailableModels { get; } = [];
     public ObservableCollection<DetectedProvider> DetectedServices { get; } = [];
 
     [ObservableProperty] private ProviderProfile? _selectedProvider;
+    [ObservableProperty] private LanguageOption? _selectedLanguage;
     [ObservableProperty] private DetectedProvider? _selectedDetectedService;
     [ObservableProperty] private string _baseUrl = "https://api.openai.com/v1";
     [ObservableProperty] private string _apiKey = string.Empty;
@@ -42,6 +49,7 @@ public partial class SettingsViewModel(
     {
         _initializing = true;
         var resolved = await settingsService.LoadResolvedAsync();
+        SelectedLanguage = Languages.First(x => x.Code == LocalizationService.Normalize(resolved.Settings.LanguageCode));
         SelectedProvider = ProviderProfiles.FirstOrDefault(x => x.Id == resolved.Settings.ProviderId) ?? ProviderProfiles[0];
         BaseUrl = resolved.Settings.BaseUrl;
         ApiKey = resolved.ApiKey;
@@ -67,13 +75,14 @@ public partial class SettingsViewModel(
         {
             await settingsService.SaveAsync(settings, ApiKey, _clearApiKey);
             _clearApiKey = false;
-            StatusMessage = "已保存。";
+            localizationService.SetLanguage(settings.LanguageCode);
+            StatusMessage = localizationService.Text("已保存。", "Saved.");
             Saved?.Invoke();
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to save provider settings.");
-            StatusMessage = "保存失败，请查看日志。";
+            StatusMessage = localizationService.Text("保存失败，请查看日志。", "Save failed. Check the log.");
         }
         finally { IsBusy = false; }
     }
@@ -83,17 +92,17 @@ public partial class SettingsViewModel(
     {
         if (!TryBuildSettings(out var settings)) return;
         IsBusy = true;
-        StatusMessage = "正在测试连接…";
+        StatusMessage = L("正在测试连接…", "Testing connection…");
         try
         {
             await provider.TestConnectionAsync(settings, ApiKey, CancellationToken.None);
-            StatusMessage = "连接成功。";
+            StatusMessage = L("连接成功。", "Connection successful.");
         }
         catch (ProviderException ex) { StatusMessage = ex.Message; }
         catch (Exception ex)
         {
             logger.LogError(ex, "Unexpected connection test failure.");
-            StatusMessage = "连接测试失败，请查看日志。";
+            StatusMessage = L("连接测试失败，请查看日志。", "Connection test failed. Check the log.");
         }
         finally { IsBusy = false; }
     }
@@ -103,20 +112,20 @@ public partial class SettingsViewModel(
     {
         if (!TryBuildSettings(out var settings, requireModel: false)) return;
         IsBusy = true;
-        StatusMessage = "正在获取模型列表…";
+        StatusMessage = L("正在获取模型列表…", "Loading models…");
         try
         {
             var models = await provider.GetModelsAsync(settings, ApiKey, CancellationToken.None);
             AvailableModels.Clear();
             foreach (var model in models) AvailableModels.Add(model);
             if (models.Count == 1) Model = models[0].Id;
-            StatusMessage = $"发现 {models.Count} 个模型。";
+            StatusMessage = L($"发现 {models.Count} 个模型。", $"Found {models.Count} models.");
         }
         catch (ProviderException ex) { StatusMessage = ex.Message; }
         catch (Exception ex)
         {
             logger.LogError(ex, "Model discovery failed.");
-            StatusMessage = "获取模型列表失败，请查看日志。";
+            StatusMessage = L("获取模型列表失败，请查看日志。", "Failed to load models. Check the log.");
         }
         finally { IsBusy = false; }
     }
@@ -125,18 +134,20 @@ public partial class SettingsViewModel(
     private async Task ScanLocalAsync()
     {
         IsBusy = true;
-        StatusMessage = "正在扫描本地模型服务…";
+        StatusMessage = L("正在扫描本地模型服务…", "Scanning local model services…");
         try
         {
             var detected = await discoveryService.ScanLocalAsync(CancellationToken.None);
             DetectedServices.Clear();
             foreach (var service in detected) DetectedServices.Add(service);
-            StatusMessage = detected.Count == 0 ? "未检测到本地模型服务。" : $"检测到 {detected.Count} 个本地模型服务。";
+            StatusMessage = detected.Count == 0
+                ? L("未检测到本地模型服务。", "No local model services detected.")
+                : L($"检测到 {detected.Count} 个本地模型服务。", $"Detected {detected.Count} local model services.");
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Local provider scan failed.");
-            StatusMessage = "本地扫描失败，请查看日志。";
+            StatusMessage = L("本地扫描失败，请查看日志。", "Local scan failed. Check the log.");
         }
         finally { IsBusy = false; }
     }
@@ -150,7 +161,7 @@ public partial class SettingsViewModel(
         AvailableModels.Clear();
         foreach (var model in SelectedDetectedService.Models) AvailableModels.Add(model);
         if (AvailableModels.Count > 0) Model = AvailableModels[0].Id;
-        StatusMessage = $"已选择 {SelectedDetectedService.Profile.DisplayName}，保存后生效。";
+        StatusMessage = L($"已选择 {SelectedDetectedService.Profile.DisplayName}，保存后生效。", $"Selected {SelectedDetectedService.Profile.DisplayName}. Save to apply.");
     }
 
     [RelayCommand]
@@ -158,13 +169,14 @@ public partial class SettingsViewModel(
     {
         ApiKey = string.Empty;
         _clearApiKey = true;
-        StatusMessage = "API Key 将在下次保存时清除。";
+        StatusMessage = L("API Key 将在下次保存时清除。", "The API key will be cleared on the next save.");
     }
 
     private bool TryBuildSettings(out ProviderSettings settings, bool requireModel = true)
     {
         settings = new ProviderSettings
         {
+            LanguageCode = SelectedLanguage?.Code ?? LocalizationService.Chinese,
             ProviderId = SelectedProvider?.Id ?? "openai-compatible",
             BaseUrl = BaseUrl.Trim(),
             Model = Model.Trim(),
@@ -179,22 +191,22 @@ public partial class SettingsViewModel(
         };
         if (!Uri.TryCreate(settings.BaseUrl, UriKind.Absolute, out _))
         {
-            StatusMessage = "请输入有效的 Base URL。";
+            StatusMessage = L("请输入有效的 Base URL。", "Enter a valid Base URL.");
             return false;
         }
         if (requireModel && string.IsNullOrWhiteSpace(settings.Model))
         {
-            StatusMessage = "请填写模型名称。";
+            StatusMessage = L("请填写模型名称。", "Enter a model name.");
             return false;
         }
         if (SelectedProvider?.RequiresApiKey == true && string.IsNullOrWhiteSpace(ApiKey))
         {
-            StatusMessage = $"{SelectedProvider.DisplayName} 需要 API Key。";
+            StatusMessage = L($"{SelectedProvider.DisplayName} 需要 API Key。", $"{SelectedProvider.DisplayName} requires an API key.");
             return false;
         }
         if (Temperature is < 0 or > 2 || TopP is < 0 or > 1 || MaxTokens <= 0 || ContextLength <= 0)
         {
-            StatusMessage = "生成参数超出有效范围。";
+            StatusMessage = L("生成参数超出有效范围。", "Generation parameters are outside the valid range.");
             return false;
         }
         return true;
@@ -205,11 +217,33 @@ public partial class SettingsViewModel(
         if (!string.IsNullOrEmpty(value)) _clearApiKey = false;
     }
 
+    partial void OnSelectedLanguageChanged(LanguageOption? value)
+    {
+        if (_initializing || value is null) return;
+        localizationService.SetLanguage(value.Code);
+        _ = PersistLanguageAsync(value.Code);
+    }
+
+    private async Task PersistLanguageAsync(string languageCode)
+    {
+        try
+        {
+            await settingsService.SaveLanguageAsync(languageCode);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to save interface language.");
+            StatusMessage = localizationService.Text("语言设置保存失败，请查看日志。", "Failed to save language setting. Check the log.");
+        }
+    }
+
     partial void OnSelectedProviderChanged(ProviderProfile? value)
     {
         if (_initializing || value is null || string.IsNullOrWhiteSpace(value.DefaultBaseUrl)) return;
         BaseUrl = value.DefaultBaseUrl;
         AvailableModels.Clear();
-        StatusMessage = $"已选择 {value.DisplayName}。";
+        StatusMessage = L($"已选择 {value.DisplayName}。", $"Selected {value.DisplayName}.");
     }
+
+    private string L(string chinese, string english) => localizationService.Text(chinese, english);
 }

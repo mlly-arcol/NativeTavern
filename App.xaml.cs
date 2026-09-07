@@ -38,6 +38,8 @@ public partial class App : Application
         {
             logger.LogInformation("NativeTavern 1.0.0 starting.");
             await _services.GetRequiredService<DatabaseInitializer>().InitializeAsync();
+            var storedSettings = await _services.GetRequiredService<SettingsService>().LoadAsync();
+            _services.GetRequiredService<LocalizationService>().SetLanguage(storedSettings.LanguageCode);
             var viewModel = _services.GetRequiredService<MainViewModel>();
             await viewModel.InitializeAsync();
             var window = _services.GetRequiredService<MainWindow>();
@@ -76,6 +78,7 @@ public partial class App : Application
         services.AddSingleton<ChatAttachmentRepository>();
         services.AddSingleton<ISecretProtector, DpapiSecretProtector>();
         services.AddSingleton<SettingsService>();
+        services.AddSingleton<LocalizationService>();
         services.AddSingleton<Importers.CharacterCardImporter>();
         services.AddSingleton<CharacterService>();
         services.AddSingleton<PromptService>();

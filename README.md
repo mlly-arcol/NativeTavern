@@ -11,7 +11,8 @@
 - SSE 流式回复与主动停止
 - SQLite 会话、消息和设置持久化
 - Windows DPAPI 加密 API Key
-- 参考桌面版 GPT 的统一深色设计：工作区侧栏、居中消息流、圆角悬浮输入框和一致的控件状态
+- 参考桌面版 GPT 的统一浅色设计：工作区侧栏、居中消息流、圆角悬浮输入框和一致的控件状态
+- 中文 / English 界面语言即时切换与持久化
 - 本地文件日志与常见 HTTP 错误提示
 - 角色创建、编辑、删除、搜索、标签与收藏
 - PNG Character Card V2/V3 与 JSON Character Card 导入
