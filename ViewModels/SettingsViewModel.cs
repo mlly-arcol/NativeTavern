@@ -65,10 +65,16 @@ public partial class SettingsViewModel(
         ContextLength = resolved.Settings.ContextLength;
         AutoScanLocalModels = resolved.Settings.AutoScanLocalModels;
         LocalModelDirectory = string.IsNullOrWhiteSpace(resolved.Settings.LocalModelDirectory)
+            || string.Equals(resolved.Settings.LocalModelDirectory, LocalModelService.LegacyModelDirectory, StringComparison.OrdinalIgnoreCase)
             ? LocalModelService.DefaultModelDirectory : resolved.Settings.LocalModelDirectory;
         KoboldCppPath = string.IsNullOrWhiteSpace(resolved.Settings.KoboldCppPath)
             ? LocalModelService.DefaultKoboldCppPath : resolved.Settings.KoboldCppPath;
-        RefreshLocalModelFiles(resolved.Settings.SelectedLocalModelPath);
+        var defaultModelPath = Path.Combine(LocalModelDirectory, LocalModelService.DefaultModelFileName);
+        var selectedModelPath = string.Equals(resolved.Settings.SelectedLocalModelPath,
+            Path.Combine(LocalModelService.LegacyModelDirectory, LocalModelService.DefaultModelFileName),
+            StringComparison.OrdinalIgnoreCase) || string.IsNullOrWhiteSpace(resolved.Settings.SelectedLocalModelPath)
+            ? defaultModelPath : resolved.Settings.SelectedLocalModelPath;
+        RefreshLocalModelFiles(selectedModelPath);
         IncludeCharacterContext = resolved.Settings.IncludeCharacterContext;
         IncludeKnowledgeContext = resolved.Settings.IncludeKnowledgeContext;
         IncludeImageContext = resolved.Settings.IncludeImageContext;
