@@ -26,7 +26,7 @@
     <Button Grid.Column="2" Content="Use Selected" Command="{Binding UseDetectedServiceCommand}" Margin="0"/>
    </Grid>
   </StackPanel>
-  <StackPanel Grid.Row="13" Grid.Column="1" Orientation="Horizontal"><Button Content="Test Connection" Command="{Binding TestConnectionCommand}"/><Button Content="Save" Command="{Binding SaveCommand}" Background="{StaticResource AccentBrush}"/></StackPanel>
+  <StackPanel Grid.Row="13" Grid.Column="1" Orientation="Horizontal"><Button Content="Test Connection" Command="{Binding TestConnectionCommand}"/><Button Content="Save" Command="{Binding SaveCommand}" Style="{StaticResource PrimaryButtonStyle}"/></StackPanel>
   <TextBlock Grid.Row="14" Grid.Column="1" Text="{Binding StatusMessage}" Margin="0,16,0,0" TextWrapping="Wrap" Foreground="{StaticResource MutedTextBrush}"/>
  </Grid></ScrollViewer>
 </UserControl>

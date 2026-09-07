@@ -1,56 +1,110 @@
-<UserControl x:Class="NativeTavern.Views.PromptStudioView" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
- <Grid Margin="28">
+<UserControl x:Class="NativeTavern.Views.PromptStudioView"
+ xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+ xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+ <UserControl.Resources>
+  <Style x:Key="FormLabelStyle" TargetType="TextBlock">
+   <Setter Property="FontSize" Value="12"/><Setter Property="FontWeight" Value="SemiBold"/>
+   <Setter Property="Foreground" Value="{StaticResource MutedTextBrush}"/><Setter Property="Margin" Value="2,0,0,7"/>
+  </Style>
+  <Style x:Key="DangerOutlineButtonStyle" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+   <Setter Property="Background" Value="#FFF3F2"/><Setter Property="Foreground" Value="#B42318"/><Setter Property="BorderBrush" Value="#F1C6C2"/>
+  </Style>
+ </UserControl.Resources>
+
+ <Grid Background="{StaticResource WindowBrush}" Margin="30,26,30,22">
   <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-  <StackPanel Margin="0,0,0,16"><TextBlock Text="Prompt Studio" FontSize="28" FontWeight="SemiBold"/><TextBlock Text="Manage Personas, Lorebooks and Prompt Presets. Applied content is sent to your configured model Provider." Foreground="{StaticResource MutedTextBrush}" Margin="0,5,0,0"/></StackPanel>
-  <TabControl Grid.Row="1" Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource BorderBrush}">
-   <TabItem Header="Personas">
-    <Grid Margin="16"><Grid.ColumnDefinitions><ColumnDefinition Width="260"/><ColumnDefinition Width="16"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-     <DockPanel><Button DockPanel.Dock="Bottom" Content="+ New Persona" Command="{Binding NewPersonaCommand}" Margin="0,10,0,0"/><ListBox ItemsSource="{Binding Personas}" SelectedItem="{Binding SelectedPersona}" DisplayMemberPath="Name"/></DockPanel>
-     <Grid Grid.Column="2"><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-      <StackPanel><TextBlock Text="Name"/><TextBox Text="{Binding PersonaName,UpdateSourceTrigger=PropertyChanged}" Margin="0,6,0,12"/></StackPanel>
-      <StackPanel Grid.Row="1"><TextBlock Text="Persona Content"/><TextBox Text="{Binding PersonaContent,UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Margin="0,6,0,12"/></StackPanel>
-      <StackPanel Grid.Row="2" Orientation="Horizontal"><Button Content="Save" Command="{Binding SavePersonaCommand}" Background="{StaticResource AccentBrush}"/><Button Content="Delete" Click="DeletePersona_OnClick" Background="#63343A"/></StackPanel>
-     </Grid>
+  <StackPanel Margin="0,0,0,18">
+   <TextBlock Text="Prompt Studio" Style="{StaticResource PageTitleStyle}"/>
+   <TextBlock Text="Manage personas, lorebooks and prompt presets used to shape each conversation."
+              Style="{StaticResource PageSubtitleStyle}" Margin="0,6,0,0"/>
+  </StackPanel>
+
+  <TabControl Grid.Row="1" Style="{StaticResource StudioTabControlStyle}">
+   <TabItem Header="Personas" Style="{StaticResource StudioTabItemStyle}">
+    <Grid>
+     <Grid.ColumnDefinitions><ColumnDefinition Width="240"/><ColumnDefinition Width="18"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+     <Border Style="{StaticResource SurfaceBorderStyle}" Padding="14">
+      <Grid>
+       <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+       <StackPanel Margin="4,2,4,12"><TextBlock Text="Personas" FontWeight="SemiBold" FontSize="15"/><TextBlock Text="Choose a voice for your conversations" Style="{StaticResource PageSubtitleStyle}" Margin="0,3,0,0" TextWrapping="Wrap"/></StackPanel>
+       <ListBox Grid.Row="1" ItemsSource="{Binding Personas}" SelectedItem="{Binding SelectedPersona}" DisplayMemberPath="Name"/>
+       <Button Grid.Row="2" Content="+  New persona" Command="{Binding NewPersonaCommand}" Margin="0,12,0,0" HorizontalContentAlignment="Center"/>
+      </Grid>
+     </Border>
+     <Border Grid.Column="2" Style="{StaticResource SurfaceBorderStyle}" Padding="24">
+      <Grid>
+       <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+       <StackPanel><TextBlock Text="Persona details" FontSize="17" FontWeight="SemiBold"/><TextBlock Text="Define how this persona speaks and behaves." Style="{StaticResource PageSubtitleStyle}" Margin="0,4,0,18"/></StackPanel>
+       <StackPanel Grid.Row="1"><TextBlock Text="Name" Style="{StaticResource FormLabelStyle}"/><TextBox Text="{Binding PersonaName,UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,18"/></StackPanel>
+       <Grid Grid.Row="2"><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions><TextBlock Text="Persona content" Style="{StaticResource FormLabelStyle}"/><TextBox Grid.Row="1" Text="{Binding PersonaContent,UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" MinHeight="180"/></Grid>
+       <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,18,0,0">
+        <Button Content="Delete" Click="DeletePersona_OnClick" Style="{StaticResource DangerOutlineButtonStyle}"/>
+        <Button Content="Save persona" Command="{Binding SavePersonaCommand}" Style="{StaticResource PrimaryButtonStyle}" Margin="0"/>
+       </StackPanel>
+      </Grid>
+     </Border>
     </Grid>
    </TabItem>
-   <TabItem Header="Lorebooks">
-    <Grid Margin="16"><Grid.ColumnDefinitions><ColumnDefinition Width="220"/><ColumnDefinition Width="14"/><ColumnDefinition Width="280"/><ColumnDefinition Width="14"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-     <DockPanel><Button DockPanel.Dock="Bottom" Content="+ New Lorebook" Command="{Binding NewLorebookCommand}" Margin="0,10,0,0"/><ListBox ItemsSource="{Binding Lorebooks}" SelectedItem="{Binding SelectedLorebook}" DisplayMemberPath="Name"/></DockPanel>
-     <StackPanel Grid.Column="2">
-      <TextBlock Text="Lorebook Name"/><TextBox Text="{Binding LorebookName,UpdateSourceTrigger=PropertyChanged}" Margin="0,6,0,10"/>
-      <TextBlock Text="Description"/><TextBox Text="{Binding LorebookDescription,UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True" TextWrapping="Wrap" Height="90" Margin="0,6,0,10"/>
-      <CheckBox Content="Enabled" IsChecked="{Binding LorebookEnabled}" Foreground="{StaticResource TextBrush}" Margin="2,4,0,12"/>
-      <StackPanel Orientation="Horizontal"><Button Content="Save" Command="{Binding SaveLorebookCommand}" Background="{StaticResource AccentBrush}"/><Button Content="Delete" Click="DeleteLorebook_OnClick" Background="#63343A"/></StackPanel>
-      <Separator Margin="0,18"/>
-      <TextBlock Text="Entries" FontWeight="SemiBold"/><ListBox ItemsSource="{Binding LoreEntries}" SelectedItem="{Binding SelectedLoreEntry}" DisplayMemberPath="Name" Height="180" Margin="0,8,0,8"/>
-      <Button Content="+ New Entry" Command="{Binding NewLoreEntryCommand}"/>
-     </StackPanel>
-     <ScrollViewer Grid.Column="4" VerticalScrollBarVisibility="Auto"><StackPanel>
-      <TextBlock Text="Entry Name"/><TextBox Text="{Binding EntryName,UpdateSourceTrigger=PropertyChanged}" Margin="0,5,0,9"/>
-      <TextBlock Text="Primary Keywords (comma separated)"/><TextBox Text="{Binding EntryKeywords,UpdateSourceTrigger=PropertyChanged}" Margin="0,5,0,9"/>
-      <TextBlock Text="Secondary Keywords"/><TextBox Text="{Binding EntrySecondaryKeywords,UpdateSourceTrigger=PropertyChanged}" Margin="0,5,0,9"/>
-      <TextBlock Text="Content"/><TextBox Text="{Binding EntryContent,UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="150" Margin="0,5,0,9"/>
-      <StackPanel Orientation="Horizontal"><TextBlock Text="Priority" VerticalAlignment="Center"/><TextBox Text="{Binding EntryPriority}" Width="70" Margin="8,0,18,0"/><TextBlock Text="Depth" VerticalAlignment="Center"/><TextBox Text="{Binding EntryDepth}" Width="70" Margin="8,0,0,0"/></StackPanel>
-      <WrapPanel Margin="0,12"><CheckBox Content="Enabled" IsChecked="{Binding EntryEnabled}" Foreground="{StaticResource TextBrush}" Margin="0,0,16,0"/><CheckBox Content="Constant" IsChecked="{Binding EntryConstant}" Foreground="{StaticResource TextBrush}" Margin="0,0,16,0"/><CheckBox Content="Selective" IsChecked="{Binding EntrySelective}" Foreground="{StaticResource TextBrush}"/></WrapPanel>
-      <StackPanel Orientation="Horizontal"><Button Content="Save Entry" Command="{Binding SaveLoreEntryCommand}" Background="{StaticResource AccentBrush}"/><Button Content="Delete Entry" Click="DeleteLoreEntry_OnClick" Background="#63343A"/></StackPanel>
-     </StackPanel></ScrollViewer>
+
+   <TabItem Header="Lorebooks" Style="{StaticResource StudioTabItemStyle}">
+    <Grid>
+     <Grid.ColumnDefinitions><ColumnDefinition Width="210"/><ColumnDefinition Width="14"/><ColumnDefinition Width="270"/><ColumnDefinition Width="14"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+     <Border Style="{StaticResource SurfaceBorderStyle}" Padding="12">
+      <Grid><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+       <TextBlock Text="Lorebooks" FontSize="15" FontWeight="SemiBold" Margin="4,4,4,12"/>
+       <ListBox Grid.Row="1" ItemsSource="{Binding Lorebooks}" SelectedItem="{Binding SelectedLorebook}" DisplayMemberPath="Name"/>
+       <Button Grid.Row="2" Content="+  New lorebook" Command="{Binding NewLorebookCommand}" Margin="0,12,0,0" HorizontalContentAlignment="Center"/>
+      </Grid>
+     </Border>
+     <Border Grid.Column="2" Style="{StaticResource SurfaceBorderStyle}" Padding="18">
+      <Grid><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+       <TextBlock Text="Lorebook settings" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,16"/>
+       <TextBlock Grid.Row="1" Text="Name" Style="{StaticResource FormLabelStyle}"/><TextBox Grid.Row="2" Text="{Binding LorebookName,UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,14"/>
+       <TextBlock Grid.Row="3" Text="Description" Style="{StaticResource FormLabelStyle}"/><TextBox Grid.Row="4" Text="{Binding LorebookDescription,UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True" TextWrapping="Wrap" Height="78"/>
+       <StackPanel Grid.Row="5" Margin="0,16,0,0"><CheckBox Content="Enabled" IsChecked="{Binding LorebookEnabled}" Margin="2,0,0,14"/><TextBlock Text="Entries" FontWeight="SemiBold"/><ListBox ItemsSource="{Binding LoreEntries}" SelectedItem="{Binding SelectedLoreEntry}" DisplayMemberPath="Name" Margin="0,8,0,0"/><Button Content="+  New entry" Command="{Binding NewLoreEntryCommand}" Margin="0,10,0,0"/></StackPanel>
+       <StackPanel Grid.Row="6" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0"><Button Content="Delete" Click="DeleteLorebook_OnClick" Style="{StaticResource DangerOutlineButtonStyle}"/><Button Content="Save" Command="{Binding SaveLorebookCommand}" Style="{StaticResource PrimaryButtonStyle}" Margin="0"/></StackPanel>
+      </Grid>
+     </Border>
+     <Border Grid.Column="4" Style="{StaticResource SurfaceBorderStyle}" Padding="20">
+      <ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel>
+       <TextBlock Text="Entry details" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,16"/>
+       <TextBlock Text="Entry name" Style="{StaticResource FormLabelStyle}"/><TextBox Text="{Binding EntryName,UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,13"/>
+       <TextBlock Text="Primary keywords" Style="{StaticResource FormLabelStyle}"/><TextBox Text="{Binding EntryKeywords,UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,13" ToolTip="Comma separated"/>
+       <TextBlock Text="Secondary keywords" Style="{StaticResource FormLabelStyle}"/><TextBox Text="{Binding EntrySecondaryKeywords,UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,13"/>
+       <TextBlock Text="Content" Style="{StaticResource FormLabelStyle}"/><TextBox Text="{Binding EntryContent,UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="130" Margin="0,0,0,13"/>
+       <WrapPanel><StackPanel Margin="0,0,18,0"><TextBlock Text="Priority" Style="{StaticResource FormLabelStyle}"/><TextBox Text="{Binding EntryPriority}" Width="75"/></StackPanel><StackPanel><TextBlock Text="Depth" Style="{StaticResource FormLabelStyle}"/><TextBox Text="{Binding EntryDepth}" Width="75"/></StackPanel></WrapPanel>
+       <WrapPanel Margin="0,16,0,14"><CheckBox Content="Enabled" IsChecked="{Binding EntryEnabled}" Margin="0,0,16,0"/><CheckBox Content="Constant" IsChecked="{Binding EntryConstant}" Margin="0,0,16,0"/><CheckBox Content="Selective" IsChecked="{Binding EntrySelective}"/></WrapPanel>
+       <StackPanel Orientation="Horizontal" HorizontalAlignment="Right"><Button Content="Delete entry" Click="DeleteLoreEntry_OnClick" Style="{StaticResource DangerOutlineButtonStyle}"/><Button Content="Save entry" Command="{Binding SaveLoreEntryCommand}" Style="{StaticResource PrimaryButtonStyle}" Margin="0"/></StackPanel>
+      </StackPanel></ScrollViewer>
+     </Border>
     </Grid>
    </TabItem>
-   <TabItem Header="Prompt Presets">
-    <Grid Margin="16"><Grid.ColumnDefinitions><ColumnDefinition Width="250"/><ColumnDefinition Width="16"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-     <DockPanel><Button DockPanel.Dock="Bottom" Content="+ New Preset" Command="{Binding NewPresetCommand}" Margin="0,10,0,0"/><ListBox ItemsSource="{Binding Presets}" SelectedItem="{Binding SelectedPreset}" DisplayMemberPath="Name"/></DockPanel>
-     <ScrollViewer Grid.Column="2" VerticalScrollBarVisibility="Auto"><StackPanel>
-      <TextBlock Text="Name"/><TextBox Text="{Binding PresetName,UpdateSourceTrigger=PropertyChanged}" Margin="0,5,0,9"/>
-      <TextBlock Text="System Prompt"/><TextBox Text="{Binding SystemPrompt,UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="110" Margin="0,5,0,9"/>
-      <TextBlock Text="Main Prompt"/><TextBox Text="{Binding MainPrompt,UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="110" Margin="0,5,0,9"/>
-      <TextBlock Text="Model override (optional)"/><TextBox Text="{Binding PresetModel,UpdateSourceTrigger=PropertyChanged}" Margin="0,5,0,9"/>
-      <StackPanel Orientation="Horizontal"><TextBlock Text="Temperature" VerticalAlignment="Center"/><TextBox Text="{Binding PresetTemperature}" Width="80" Margin="8,0,16,0"/><TextBlock Text="Top P" VerticalAlignment="Center"/><TextBox Text="{Binding PresetTopP}" Width="80" Margin="8,0,16,0"/><TextBlock Text="Max Tokens" VerticalAlignment="Center"/><TextBox Text="{Binding PresetMaxTokens}" Width="90" Margin="8,0,0,0"/></StackPanel>
-      <TextBlock Text="Leave overrides blank to use Settings values." Foreground="{StaticResource MutedTextBrush}" Margin="0,10,0,14"/>
-      <StackPanel Orientation="Horizontal"><Button Content="Save" Command="{Binding SavePresetCommand}" Background="{StaticResource AccentBrush}"/><Button Content="Delete" Click="DeletePreset_OnClick" Background="#63343A"/></StackPanel>
-     </StackPanel></ScrollViewer>
+
+   <TabItem Header="Prompt presets" Style="{StaticResource StudioTabItemStyle}">
+    <Grid>
+     <Grid.ColumnDefinitions><ColumnDefinition Width="240"/><ColumnDefinition Width="18"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+     <Border Style="{StaticResource SurfaceBorderStyle}" Padding="14">
+      <Grid><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+       <StackPanel Margin="4,2,4,12"><TextBlock Text="Prompt presets" FontWeight="SemiBold" FontSize="15"/><TextBlock Text="Reusable model instructions" Style="{StaticResource PageSubtitleStyle}" Margin="0,3,0,0"/></StackPanel>
+       <ListBox Grid.Row="1" ItemsSource="{Binding Presets}" SelectedItem="{Binding SelectedPreset}" DisplayMemberPath="Name"/>
+       <Button Grid.Row="2" Content="+  New preset" Command="{Binding NewPresetCommand}" Margin="0,12,0,0" HorizontalContentAlignment="Center"/>
+      </Grid>
+     </Border>
+     <Border Grid.Column="2" Style="{StaticResource SurfaceBorderStyle}" Padding="22">
+      <ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel>
+       <TextBlock Text="Preset details" FontSize="17" FontWeight="SemiBold"/><TextBlock Text="Configure instructions and optional model overrides." Style="{StaticResource PageSubtitleStyle}" Margin="0,4,0,18"/>
+       <TextBlock Text="Name" Style="{StaticResource FormLabelStyle}"/><TextBox Text="{Binding PresetName,UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,14"/>
+       <TextBlock Text="System prompt" Style="{StaticResource FormLabelStyle}"/><TextBox Text="{Binding SystemPrompt,UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="100" Margin="0,0,0,14"/>
+       <TextBlock Text="Main prompt" Style="{StaticResource FormLabelStyle}"/><TextBox Text="{Binding MainPrompt,UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="100" Margin="0,0,0,14"/>
+       <TextBlock Text="Model override" Style="{StaticResource FormLabelStyle}"/><TextBox Text="{Binding PresetModel,UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,14"/>
+       <WrapPanel><StackPanel Margin="0,0,18,0"><TextBlock Text="Temperature" Style="{StaticResource FormLabelStyle}"/><TextBox Text="{Binding PresetTemperature}" Width="90"/></StackPanel><StackPanel Margin="0,0,18,0"><TextBlock Text="Top P" Style="{StaticResource FormLabelStyle}"/><TextBox Text="{Binding PresetTopP}" Width="90"/></StackPanel><StackPanel><TextBlock Text="Max tokens" Style="{StaticResource FormLabelStyle}"/><TextBox Text="{Binding PresetMaxTokens}" Width="110"/></StackPanel></WrapPanel>
+       <TextBlock Text="Leave overrides blank to use the values from Settings." Style="{StaticResource PageSubtitleStyle}" Margin="0,12,0,18"/>
+       <StackPanel Orientation="Horizontal" HorizontalAlignment="Right"><Button Content="Delete" Click="DeletePreset_OnClick" Style="{StaticResource DangerOutlineButtonStyle}"/><Button Content="Save preset" Command="{Binding SavePresetCommand}" Style="{StaticResource PrimaryButtonStyle}" Margin="0"/></StackPanel>
+      </StackPanel></ScrollViewer>
+     </Border>
     </Grid>
    </TabItem>
   </TabControl>
-  <TextBlock Grid.Row="2" Text="{Binding StatusMessage}" Foreground="{StaticResource MutedTextBrush}" Margin="0,12,0,0"/>
+  <TextBlock Grid.Row="2" Text="{Binding StatusMessage}" Foreground="{StaticResource MutedTextBrush}" Margin="2,12,0,0"/>
  </Grid>
 </UserControl>

@@ -6,13 +6,13 @@
         FontFamily="Segoe UI Variable Text, Segoe UI" AllowDrop="True" Drop="Window_OnDrop">
     <Grid>
         <Grid.ColumnDefinitions><ColumnDefinition Width="250" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
-        <Border Grid.Column="0" Background="{StaticResource SidebarBrush}" BorderBrush="#2B2B2B" BorderThickness="0,0,1,0">
+        <Border Grid.Column="0" Background="{StaticResource SidebarBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,1,0">
             <DockPanel Margin="10,12">
                 <StackPanel DockPanel.Dock="Top">
                     <Grid Margin="8,4,8,16">
                         <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                         <Border Width="30" Height="30" CornerRadius="9" Background="{StaticResource AccentBrush}">
-                            <TextBlock Text="N" FontSize="15" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            <TextBlock Text="N" Foreground="White" FontSize="15" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" />
                         </Border>
                         <StackPanel Grid.Column="1" Margin="10,0,0,0" VerticalAlignment="Center">
                             <TextBlock Text="NativeTavern" FontSize="15" FontWeight="SemiBold" />

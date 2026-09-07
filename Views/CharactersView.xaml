@@ -6,13 +6,13 @@
   <DockPanel Margin="0,0,0,18">
    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
     <Button Content="Import Card" Click="Import_OnClick"/>
-    <Button Content="+ New Character" Command="{Binding NewCharacterCommand}" Background="{StaticResource AccentBrush}"/>
+    <Button Content="+ New Character" Command="{Binding NewCharacterCommand}" Style="{StaticResource PrimaryButtonStyle}"/>
    </StackPanel>
    <StackPanel><TextBlock Text="Characters" FontSize="28" FontWeight="SemiBold"/><TextBlock Text="Create, import and manage character cards" Foreground="{StaticResource MutedTextBrush}" Margin="0,5,0,0"/></StackPanel>
   </DockPanel>
   <Grid Grid.Row="1">
    <Grid.ColumnDefinitions><ColumnDefinition Width="330"/><ColumnDefinition Width="8"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-   <Border Grid.Column="0" Background="{StaticResource PanelBrush}" CornerRadius="10" Padding="14">
+   <Border Grid.Column="0" Style="{StaticResource SurfaceBorderStyle}" Padding="14">
     <Grid>
      <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
      <TextBox Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" ToolTip="Search name, tags or description"/>
@@ -32,7 +32,7 @@
     </Grid>
    </Border>
    <GridSplitter Grid.Column="1" Width="4" HorizontalAlignment="Center" Background="{StaticResource BorderBrush}"/>
-   <Border Grid.Column="2" Background="{StaticResource PanelBrush}" CornerRadius="10" Padding="22">
+   <Border Grid.Column="2" Style="{StaticResource SurfaceBorderStyle}" Padding="22">
     <ScrollViewer VerticalScrollBarVisibility="Auto">
      <Grid>
       <Grid.ColumnDefinitions><ColumnDefinition Width="130"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
@@ -54,9 +54,9 @@
       <TextBlock Grid.Row="7" Text="First Message" VerticalAlignment="Top" Margin="0,10,0,0"/><TextBox Grid.Row="7" Grid.Column="1" Text="{Binding FirstMessage, UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="92" Margin="0,0,0,12"/>
       <TextBlock Grid.Row="8" Text="Example Messages" VerticalAlignment="Top" Margin="0,10,0,0"/><TextBox Grid.Row="8" Grid.Column="1" Text="{Binding ExampleMessages, UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="92" Margin="0,0,0,16"/>
       <StackPanel Grid.Row="9" Grid.Column="1" Orientation="Horizontal">
-       <Button Content="Save" Command="{Binding SaveCommand}" Background="{StaticResource AccentBrush}"/>
+       <Button Content="Save" Command="{Binding SaveCommand}" Style="{StaticResource PrimaryButtonStyle}"/>
        <Button Content="Start Chat" Command="{Binding StartChatCommand}"/>
-       <Button Content="Delete" Click="Delete_OnClick" Background="#63343A"/>
+       <Button Content="Delete" Click="Delete_OnClick" Background="#FFF3F2" Foreground="#B42318" BorderBrush="#F1C6C2"/>
       </StackPanel>
       <TextBlock Grid.Row="10" Grid.Column="1" Text="{Binding StatusMessage}" Foreground="{StaticResource MutedTextBrush}" TextWrapping="Wrap" Margin="0,14,0,4"/>
      </Grid>
