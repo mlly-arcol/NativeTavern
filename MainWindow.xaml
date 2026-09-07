@@ -40,7 +40,7 @@
                     <Button Content="⚙   Settings" Style="{StaticResource SelectedNavButtonStyle}" Tag="{Binding Settings}" Command="{Binding ShowSettingsCommand}" />
                     <Grid Margin="12,9,12,5">
                         <TextBlock Text="NativeTavern" FontSize="11" Foreground="{StaticResource MutedTextBrush}" />
-                        <TextBlock Text="v1.0.0" FontSize="10" Foreground="{StaticResource SubtleTextBrush}" HorizontalAlignment="Right" />
+                        <TextBlock Text="v1.1.0" FontSize="10" Foreground="{StaticResource SubtleTextBrush}" HorizontalAlignment="Right" />
                     </Grid>
                 </StackPanel>
             </DockPanel>

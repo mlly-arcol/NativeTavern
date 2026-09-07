@@ -7,3 +7,4 @@ publish/
 *.db
 *.log
 LocalModels/*.gguf
+llama.cpp/

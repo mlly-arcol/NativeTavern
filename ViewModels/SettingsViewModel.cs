@@ -31,7 +31,7 @@ public partial class SettingsViewModel(
     [ObservableProperty] private DetectedProvider? _selectedDetectedService;
     [ObservableProperty] private LocalModelFile? _selectedLocalModel;
     [ObservableProperty] private string _localModelDirectory = LocalModelService.DefaultModelDirectory;
-    [ObservableProperty] private string _koboldCppPath = LocalModelService.DefaultKoboldCppPath;
+    [ObservableProperty] private string _llamaCppPath = LocalModelService.DefaultLlamaCppPath;
     [ObservableProperty] private string _baseUrl = "https://api.openai.com/v1";
     [ObservableProperty] private string _apiKey = string.Empty;
     [ObservableProperty] private string _model = string.Empty;
@@ -67,8 +67,8 @@ public partial class SettingsViewModel(
         LocalModelDirectory = string.IsNullOrWhiteSpace(resolved.Settings.LocalModelDirectory)
             || string.Equals(resolved.Settings.LocalModelDirectory, LocalModelService.LegacyModelDirectory, StringComparison.OrdinalIgnoreCase)
             ? LocalModelService.DefaultModelDirectory : resolved.Settings.LocalModelDirectory;
-        KoboldCppPath = string.IsNullOrWhiteSpace(resolved.Settings.KoboldCppPath)
-            ? LocalModelService.DefaultKoboldCppPath : resolved.Settings.KoboldCppPath;
+        LlamaCppPath = string.IsNullOrWhiteSpace(resolved.Settings.LlamaCppPath)
+            ? LocalModelService.DefaultLlamaCppPath : resolved.Settings.LlamaCppPath;
         var defaultModelPath = Path.Combine(LocalModelDirectory, LocalModelService.DefaultModelFileName);
         var selectedModelPath = string.Equals(resolved.Settings.SelectedLocalModelPath,
             Path.Combine(LocalModelService.LegacyModelDirectory, LocalModelService.DefaultModelFileName),
@@ -182,8 +182,8 @@ public partial class SettingsViewModel(
         StatusMessage = L($"正在加载 {SelectedLocalModel.Name}…", $"Loading {SelectedLocalModel.Name}…");
         try
         {
-            await localModelService.StartAsync(KoboldCppPath.Trim(), SelectedLocalModel, CancellationToken.None);
-            var profile = ProviderProfiles.First(x => x.Id == "koboldcpp");
+            await localModelService.StartAsync(LlamaCppPath.Trim(), SelectedLocalModel, CancellationToken.None);
+            var profile = ProviderProfiles.First(x => x.Id == "llamacpp");
             _initializing = true;
             SelectedProvider = profile;
             BaseUrl = profile.DefaultBaseUrl;
@@ -272,7 +272,7 @@ public partial class SettingsViewModel(
             ContextLength = ContextLength,
             AutoScanLocalModels = AutoScanLocalModels,
             LocalModelDirectory = LocalModelDirectory.Trim(),
-            KoboldCppPath = KoboldCppPath.Trim(),
+            LlamaCppPath = LlamaCppPath.Trim(),
             SelectedLocalModelPath = SelectedLocalModel?.FilePath ?? string.Empty,
             IncludeCharacterContext = IncludeCharacterContext,
             IncludeKnowledgeContext = IncludeKnowledgeContext,

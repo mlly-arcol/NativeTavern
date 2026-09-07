@@ -2,7 +2,7 @@
 
 一个面向个人使用的 Windows 原生 AI 角色聊天客户端。
 
-## 当前版本：V1.0
+## 当前版本：V1.1
 
 当前仓库已实现日常角色聊天所需的本地桌面闭环：
 
@@ -13,7 +13,7 @@
 - Windows DPAPI 加密 API Key
 - 参考桌面版 GPT 的统一浅色设计：工作区侧栏、居中消息流、圆角悬浮输入框和一致的控件状态
 - 中文 / English 界面语言即时切换与持久化
-- 从 SillyTavern 模型目录发现 GGUF 文件，并通过 KoboldCpp 在应用内启动、切换和连接
+- 从 NativeTavern/LocalModels 发现 GGUF 文件，并通过 llama.cpp server 在应用内启动、切换和连接
 - 本地文件日志与常见 HTTP 错误提示
 - 角色创建、编辑、删除、搜索、标签与收藏
 - PNG Character Card V2/V3 与 JSON Character Card 导入
@@ -919,6 +919,19 @@ V1.0 不要求拥有 SillyTavern 的所有功能。
 > 自己日常使用过程中已经不再需要打开 SillyTavern。
 
 状态：已完成。V1.0 聚焦个人日常角色聊天闭环，不包含插件商城、多用户或云同步。
+
+### V1.1
+
+目标：将默认本地 GGUF 运行器切换为 llama.cpp server。
+
+实现：
+
+- 使用 NativeTavern/llama.cpp/llama-server.exe 启动本地模型
+- 默认连接 127.0.0.1:8080 的 OpenAI-compatible API
+- 默认加载 NativeTavern/LocalModels/Qwen3-8B-Q4_K_M.gguf
+- 使用 NVIDIA CUDA 后端并保留 GPU 层卸载设置
+
+状态：已完成。
 
 ---
 

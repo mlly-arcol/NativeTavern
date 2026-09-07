@@ -36,7 +36,7 @@ public partial class App : Application
         };
         try
         {
-            logger.LogInformation("NativeTavern 1.0.0 starting.");
+            logger.LogInformation("NativeTavern 1.1.0 starting.");
             await _services.GetRequiredService<DatabaseInitializer>().InitializeAsync();
             var storedSettings = await _services.GetRequiredService<SettingsService>().LoadAsync();
             _services.GetRequiredService<LocalizationService>().SetLanguage(storedSettings.LanguageCode);
