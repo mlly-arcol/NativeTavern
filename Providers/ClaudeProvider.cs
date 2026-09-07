@@ -106,15 +106,32 @@ public sealed class ClaudeProvider(
 
     private static IReadOnlyList<object> NormalizeMessages(IEnumerable<ChatCompletionMessage> source)
     {
-        var result = new List<(string Role, string Content)>();
+        var result = new List<(string Role, object Content)>();
         foreach (var message in source)
         {
             var role = message.Role == "assistant" ? "assistant" : "user";
-            if (result.Count > 0 && result[^1].Role == role)
-                result[^1] = (role, result[^1].Content + "\n\n" + message.Content);
-            else result.Add((role, message.Content));
+            var content = BuildContent(message);
+            if (result.Count > 0 && result[^1].Role == role && result[^1].Content is string previous && content is string current)
+                result[^1] = (role, previous + "\n\n" + current);
+            else result.Add((role, content));
         }
         return result.Select(x => (object)new { role = x.Role, content = x.Content }).ToList();
+    }
+
+    private static object BuildContent(ChatCompletionMessage message)
+    {
+        if (message.ImageDataUrls.Count == 0) return message.Content;
+        var content = new List<object> { new { type = "text", text = message.Content } };
+        foreach (var url in message.ImageDataUrls)
+        {
+            var separator = url.IndexOf(",", StringComparison.Ordinal);
+            var header = separator < 0 ? string.Empty : url[..separator];
+            var data = separator < 0 ? string.Empty : url[(separator + 1)..];
+            var mime = header.StartsWith("data:", StringComparison.OrdinalIgnoreCase)
+                ? header[5..].Split(';')[0] : "image/png";
+            content.Add(new { type = "image", source = new { type = "base64", media_type = mime, data } });
+        }
+        return content;
     }
 
     private static void AddHeaders(HttpRequestMessage request, string apiKey)

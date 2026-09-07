@@ -1,5 +1,6 @@
 using System.Buffers.Binary;
 using System.Text;
+using System.Text.Json;
 using NativeTavern.Importers;
 using NativeTavern.Models;
 using NativeTavern.Providers;
@@ -162,6 +163,31 @@ public sealed class CharacterCardImporterTests
         var error = Assert.Throws<ProviderException>(() => ClaudeProvider.ParseStreamingContent(
             """{"type":"error","error":{"message":"overloaded"}}"""));
         Assert.Equal("overloaded", error.Message);
+    }
+
+    [Fact]
+    public void TokenEstimatorAccountsForCjkAndImages()
+    {
+        var textOnly = TokenEstimator.Estimate([
+            new ChatCompletionMessage { Role = "user", Content = "你好 world" }
+        ]);
+        var withImage = TokenEstimator.Estimate([
+            new ChatCompletionMessage { Role = "user", Content = "你好 world", ImageDataUrls = ["data:image/png;base64,AA=="] }
+        ]);
+        Assert.True(textOnly > 4);
+        Assert.Equal(85, withImage - textOnly);
+    }
+
+    [Fact]
+    public void ImageMessageUsesOpenAiContentParts()
+    {
+        var json = JsonSerializer.Serialize(new ChatCompletionMessage
+        {
+            Role = "user", Content = "Look", ImageDataUrls = ["data:image/png;base64,AA=="]
+        });
+        Assert.Contains("image_url", json);
+        Assert.Contains("data:image/png", json);
+        Assert.Contains("Look", json);
     }
 
     private static byte[] BuildPng(params (string Key, string Value)[] cards)

@@ -3,6 +3,7 @@ using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using Microsoft.Win32;
 using NativeTavern.ViewModels;
 
 namespace NativeTavern.Views;
@@ -86,6 +87,19 @@ public partial class ChatView : UserControl
         }
         if (e.Key != Key.Enter || Keyboard.Modifiers.HasFlag(ModifierKeys.Shift)) return;
         if (_viewModel.SendCommand.CanExecute(null)) _viewModel.SendCommand.Execute(null);
+        e.Handled = true;
+    }
+
+    private void AttachImage_OnClick(object sender, RoutedEventArgs e)
+    {
+        var dialog = new OpenFileDialog { Filter = "Images|*.png;*.jpg;*.jpeg;*.webp;*.gif", Multiselect = true };
+        if (dialog.ShowDialog() == true) _viewModel?.AddImages(dialog.FileNames);
+    }
+
+    private void InputBox_OnDrop(object sender, DragEventArgs e)
+    {
+        if (!e.Data.GetDataPresent(DataFormats.FileDrop)) return;
+        if (e.Data.GetData(DataFormats.FileDrop) is string[] files) _viewModel?.AddImages(files);
         e.Handled = true;
     }
 }

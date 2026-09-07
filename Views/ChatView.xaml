@@ -8,9 +8,10 @@
    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
     <ComboBox Width="250" Height="38" ItemsSource="{Binding Sessions}" SelectedItem="{Binding SelectedSession}" DisplayMemberPath="Title" Margin="0,0,10,0" ToolTip="切换聊天记录"/>
     <Button Content="Delete Chat" Click="DeleteChat_OnClick"/>
+    <Button Content="Inspect Prompt" Command="{Binding OpenPromptInspectorCommand}"/>
     <Button Content="+ New Chat" Command="{Binding NewChatCommand}" Margin="0"/>
    </StackPanel>
-   <StackPanel><TextBlock Text="Chat" FontSize="28" FontWeight="SemiBold"/><TextBlock Text="{Binding SessionTitle}" Foreground="{StaticResource MutedTextBrush}" Margin="0,5,0,0"/></StackPanel>
+   <StackPanel><TextBlock Text="Chat" FontSize="28" FontWeight="SemiBold"/><StackPanel Orientation="Horizontal" Margin="0,5,0,0"><TextBlock Text="{Binding SessionTitle}" Foreground="{StaticResource MutedTextBrush}"/><TextBlock Text=" · ~" Foreground="{StaticResource MutedTextBrush}"/><TextBlock Text="{Binding EstimatedPromptTokens}" Foreground="{StaticResource MutedTextBrush}"/><TextBlock Text=" tokens" Foreground="{StaticResource MutedTextBrush}"/></StackPanel></StackPanel>
   </DockPanel>
   <Border Grid.Row="1" Padding="12" Margin="0,0,0,12" CornerRadius="8" Background="{StaticResource PanelBrush}" ToolTip="Applied Persona, Lorebook, Preset and Author Note content is sent to the configured model Provider.">
    <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="150"/><ColumnDefinition Width="150"/><ColumnDefinition Width="170"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
@@ -34,7 +35,11 @@
       <StackPanel>
        <TextBlock Text="{Binding RoleLabel}" FontWeight="SemiBold" Foreground="{StaticResource MutedTextBrush}" Margin="0,0,0,6"/>
        <StackPanel Visibility="{Binding IsEditing, Converter={StaticResource InverseBoolToVisibility}}">
-        <TextBlock Text="{Binding Content}" TextWrapping="Wrap" FontSize="15" LineHeight="22"/>
+       <TextBlock Text="{Binding Content}" TextWrapping="Wrap" FontSize="15" LineHeight="22"/>
+        <ItemsControl ItemsSource="{Binding Attachments}" Visibility="{Binding HasAttachments, Converter={StaticResource BoolToVisibility}}" Margin="0,10,0,0">
+         <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+         <ItemsControl.ItemTemplate><DataTemplate><Border Width="180" Height="120" CornerRadius="6" ClipToBounds="True" Background="{StaticResource PanelBrush}" Margin="0,0,8,8"><Image Source="{Binding FilePath}" Stretch="UniformToFill" ToolTip="{Binding FileName}"/></Border></DataTemplate></ItemsControl.ItemTemplate>
+        </ItemsControl>
         <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
          <Button Content="Copy" Padding="9,4" FontSize="11" Tag="{Binding}" Click="CopyMessage_OnClick"/>
          <Button Content="Edit" Padding="9,4" FontSize="11" Command="{Binding DataContext.BeginEditCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}"/>
@@ -61,8 +66,9 @@
   </ListBox>
   <StackPanel Grid.Row="4" Margin="0,16,0,0">
    <Border Background="#48262B" CornerRadius="6" Padding="10" Margin="0,0,0,10" Visibility="{Binding ErrorMessage, Converter={StaticResource StringToVisibility}}"><TextBlock Text="{Binding ErrorMessage}" Foreground="#FFB8BE" TextWrapping="Wrap"/></Border>
-   <TextBox Text="{Binding InputText, UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True" MinHeight="76" MaxHeight="180" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" PreviewKeyDown="InputBox_OnPreviewKeyDown" ToolTip="Enter 发送，Shift+Enter 换行，Ctrl+Enter 重新生成，Esc 停止"/>
-   <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0"><Button Content="Stop" Command="{Binding StopCommand}"/><Button Content="Send" Command="{Binding SendCommand}" Background="{StaticResource AccentBrush}" Margin="0"/></StackPanel>
+   <TextBox Text="{Binding InputText, UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True" MinHeight="76" MaxHeight="180" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" PreviewKeyDown="InputBox_OnPreviewKeyDown" AllowDrop="True" Drop="InputBox_OnDrop" ToolTip="Enter 发送，Shift+Enter 换行，Ctrl+Enter 重新生成，Esc 停止；可拖入图片"/>
+   <ItemsControl ItemsSource="{Binding PendingImagePaths}" Margin="0,8,0,0"><ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate></ItemsControl.ItemsPanel><ItemsControl.ItemTemplate><DataTemplate><Border Background="{StaticResource CardBrush}" CornerRadius="5" Padding="6" Margin="0,0,7,0"><StackPanel Orientation="Horizontal"><TextBlock Text="{Binding}" MaxWidth="220" TextTrimming="CharacterEllipsis"/><Button Content="×" Padding="5,1" Margin="7,0,0,0" Command="{Binding DataContext.RemovePendingImageCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}"/></StackPanel></Border></DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+   <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0"><Button Content="Attach Image" Click="AttachImage_OnClick"/><Button Content="Stop" Command="{Binding StopCommand}"/><Button Content="Send" Command="{Binding SendCommand}" Background="{StaticResource AccentBrush}" Margin="0"/></StackPanel>
   </StackPanel>
  </Grid>
 </UserControl>

@@ -1,16 +1,18 @@
 using CommunityToolkit.Mvvm.ComponentModel;
+using System.Collections.ObjectModel;
 using NativeTavern.Models;
 
 namespace NativeTavern.ViewModels;
 
 public partial class ChatMessageViewModel : ObservableObject
 {
-    public ChatMessageViewModel(ChatMessage model, int swipeCount = 0)
+    public ChatMessageViewModel(ChatMessage model, int swipeCount = 0, IEnumerable<ChatAttachment>? attachments = null)
     {
         Model = model;
         _content = model.Content;
         _editText = model.Content;
         _swipeCount = swipeCount;
+        Attachments = new ObservableCollection<ChatAttachment>(attachments ?? []);
     }
 
     public ChatMessage Model { get; }
@@ -20,6 +22,8 @@ public partial class ChatMessageViewModel : ObservableObject
     public string SwipeDisplay => IsAssistant && SwipeCount > 0
         ? $"{Model.CurrentSwipeIndex + 1} / {SwipeCount}" : string.Empty;
     public bool CanSwipeLeft => IsAssistant && Model.CurrentSwipeIndex > 0;
+    public ObservableCollection<ChatAttachment> Attachments { get; }
+    public bool HasAttachments => Attachments.Count > 0;
 
     [ObservableProperty] private string _content;
     [ObservableProperty] private bool _isEditing;

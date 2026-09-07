@@ -36,11 +36,16 @@ public partial class App : Application
         };
         try
         {
-            logger.LogInformation("NativeTavern 0.5.0 starting.");
+            logger.LogInformation("NativeTavern 1.0.0 starting.");
             await _services.GetRequiredService<DatabaseInitializer>().InitializeAsync();
             var viewModel = _services.GetRequiredService<MainViewModel>();
             await viewModel.InitializeAsync();
-            _services.GetRequiredService<MainWindow>().Show();
+            var window = _services.GetRequiredService<MainWindow>();
+            _services.GetRequiredService<TrayService>().Initialize(() =>
+            {
+                window.Show(); window.WindowState = WindowState.Normal; window.Activate();
+            });
+            window.Show();
         }
         catch (Exception ex)
         {
@@ -67,11 +72,17 @@ public partial class App : Application
         services.AddSingleton<SettingsRepository>();
         services.AddSingleton<CharacterRepository>();
         services.AddSingleton<PromptRepository>();
+        services.AddSingleton<KnowledgeRepository>();
+        services.AddSingleton<ChatAttachmentRepository>();
         services.AddSingleton<ISecretProtector, DpapiSecretProtector>();
         services.AddSingleton<SettingsService>();
         services.AddSingleton<Importers.CharacterCardImporter>();
         services.AddSingleton<CharacterService>();
         services.AddSingleton<PromptService>();
+        services.AddSingleton<KnowledgeService>();
+        services.AddSingleton<AttachmentService>();
+        services.AddSingleton<ConversationSummaryService>();
+        services.AddSingleton<TrayService>();
         services.AddHttpClient<OpenAICompatibleProvider>(client => client.Timeout = Timeout.InfiniteTimeSpan);
         services.AddHttpClient<ClaudeProvider>(client => client.Timeout = Timeout.InfiniteTimeSpan);
         services.AddSingleton<ProviderRouter>();
@@ -82,6 +93,8 @@ public partial class App : Application
         services.AddSingleton<SettingsViewModel>();
         services.AddSingleton<CharactersViewModel>();
         services.AddSingleton<PromptStudioViewModel>();
+        services.AddSingleton<KnowledgeViewModel>();
+        services.AddSingleton<PromptInspectorViewModel>();
         services.AddSingleton<MainViewModel>();
         services.AddSingleton<MainWindow>();
     }

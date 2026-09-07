@@ -14,6 +14,7 @@ public partial class ChatViewModel(
     ChatService chatService,
     PromptRepository promptRepository,
     SettingsService settingsService,
+    TrayService trayService,
     ILogger<ChatViewModel> logger) : ObservableObject
 {
     public ObservableCollection<ChatMessageViewModel> Messages { get; } = [];
@@ -21,6 +22,7 @@ public partial class ChatViewModel(
     public ObservableCollection<Persona> Personas { get; } = [];
     public ObservableCollection<Lorebook> Lorebooks { get; } = [];
     public ObservableCollection<PromptPreset> Presets { get; } = [];
+    public ObservableCollection<string> PendingImagePaths { get; } = [];
 
     [ObservableProperty] private string _inputText = string.Empty;
     [ObservableProperty] private bool _isGenerating;
@@ -32,12 +34,16 @@ public partial class ChatViewModel(
     [ObservableProperty] private Lorebook? _selectedLorebook;
     [ObservableProperty] private PromptPreset? _selectedPreset;
     [ObservableProperty] private string _authorNote = string.Empty;
+    [ObservableProperty] private int _estimatedPromptTokens;
 
     private ChatSession? _session;
     private CancellationTokenSource? _generationCancellation;
     private bool _suppressSessionSelection;
 
     public event Action? ConfigureRequested;
+    public event Action? PromptInspectorRequested;
+
+    public ChatSession? CurrentSession => _session;
 
     public async Task InitializeAsync()
     {
@@ -76,6 +82,7 @@ public partial class ChatViewModel(
             _session, SelectedPersona?.Id, SelectedLorebook?.Id, SelectedPreset?.Id, AuthorNote.Trim());
         ErrorMessage = null;
         await RefreshSessionsAsync(_session.Id);
+        await RefreshTokenEstimateAsync();
     }
 
     [RelayCommand]
@@ -103,18 +110,21 @@ public partial class ChatViewModel(
         if (_session is null || !CanSend()) return;
         ErrorMessage = null;
         var input = InputText;
+        var images = PendingImagePaths.ToArray();
         InputText = string.Empty;
+        PendingImagePaths.Clear();
         using var cancellation = BeginGeneration();
         ChatMessageViewModel? assistantViewModel = null;
         try
         {
             await chatService.SendAsync(
-                _session, input,
+                _session, input, images,
                 async (user, assistant) =>
                 {
+                    var attachments = await chatService.GetAttachmentsAsync(user.Id);
                     await Application.Current.Dispatcher.InvokeAsync(() =>
                     {
-                        Messages.Add(new ChatMessageViewModel(user));
+                        Messages.Add(new ChatMessageViewModel(user, attachments: attachments));
                         assistantViewModel = new ChatMessageViewModel(assistant);
                         Messages.Add(assistantViewModel);
                         SessionTitle = _session.Title;
@@ -128,8 +138,12 @@ public partial class ChatViewModel(
                     });
                 }, cancellation.Token);
             if (assistantViewModel is not null && !string.IsNullOrEmpty(assistantViewModel.Content))
+            {
                 assistantViewModel.SetSwipeState(0, 1, assistantViewModel.Content);
+                trayService.Notify("NativeTavern", "助手回复已完成。");
+            }
             await RefreshSessionsAsync(_session.Id);
+            await RefreshTokenEstimateAsync();
         }
         catch (ProviderException ex) { ErrorMessage = ex.Message; }
         catch (Exception ex)
@@ -238,6 +252,28 @@ public partial class ChatViewModel(
     [RelayCommand]
     private void OpenSettings() => ConfigureRequested?.Invoke();
 
+    [RelayCommand]
+    private void OpenPromptInspector() => PromptInspectorRequested?.Invoke();
+
+    public void AddImages(IEnumerable<string> paths)
+    {
+        foreach (var path in paths.Where(AttachmentService.IsSupportedImage).Distinct(StringComparer.OrdinalIgnoreCase))
+            if (!PendingImagePaths.Contains(path, StringComparer.OrdinalIgnoreCase)) PendingImagePaths.Add(path);
+        SendCommand.NotifyCanExecuteChanged();
+    }
+
+    [RelayCommand]
+    private void RemovePendingImage(string? path)
+    {
+        if (path is not null) PendingImagePaths.Remove(path);
+        SendCommand.NotifyCanExecuteChanged();
+    }
+
+    public Task<PromptBuildResult?> GetPromptPreviewAsync() =>
+        _session is null ? Task.FromResult<PromptBuildResult?>(null) : GetPreviewAsync(_session);
+
+    private async Task<PromptBuildResult?> GetPreviewAsync(ChatSession session) => await chatService.GetPromptPreviewAsync(session);
+
     private async Task SelectSwipeAsync(ChatMessageViewModel message, int index)
     {
         try
@@ -306,7 +342,8 @@ public partial class ChatViewModel(
         AuthorNote = session.AuthorNote;
         Messages.Clear();
         foreach (var message in await chatService.GetMessagesAsync(session.Id))
-            Messages.Add(new ChatMessageViewModel(message, await chatService.GetSwipeCountAsync(message)));
+            Messages.Add(new ChatMessageViewModel(message, await chatService.GetSwipeCountAsync(message), await chatService.GetAttachmentsAsync(message.Id)));
+        await RefreshTokenEstimateAsync();
     }
 
     private async Task RefreshSessionsAsync(long selectedId)
@@ -340,7 +377,7 @@ public partial class ChatViewModel(
     }
 
     private bool CanSend() => !IsGenerating && HasProviderConfiguration &&
-                              !string.IsNullOrWhiteSpace(InputText);
+                              (!string.IsNullOrWhiteSpace(InputText) || PendingImagePaths.Count > 0);
     private bool CanStop() => IsGenerating;
     private bool CanCreateChat() => !IsGenerating;
 
@@ -363,6 +400,12 @@ public partial class ChatViewModel(
             logger.LogError(ex, "Loading chat session failed.");
             ErrorMessage = "加载聊天记录失败。";
         }
+    }
+
+    private async Task RefreshTokenEstimateAsync()
+    {
+        try { EstimatedPromptTokens = (await GetPromptPreviewAsync())?.EstimatedTokens ?? 0; }
+        catch { EstimatedPromptTokens = 0; }
     }
 
     partial void OnInputTextChanged(string value) => SendCommand.NotifyCanExecuteChanged();

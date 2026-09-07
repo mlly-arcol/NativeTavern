@@ -45,5 +45,7 @@
         <DataTemplate DataType="{x:Type vm:SettingsViewModel}"><views:SettingsView /></DataTemplate>
         <DataTemplate DataType="{x:Type vm:CharactersViewModel}"><views:CharactersView /></DataTemplate>
         <DataTemplate DataType="{x:Type vm:PromptStudioViewModel}"><views:PromptStudioView /></DataTemplate>
+        <DataTemplate DataType="{x:Type vm:KnowledgeViewModel}"><views:KnowledgeView /></DataTemplate>
+        <DataTemplate DataType="{x:Type vm:PromptInspectorViewModel}"><views:PromptInspectorView /></DataTemplate>
     </Application.Resources>
 </Application>

@@ -9,6 +9,7 @@ public sealed class ChatSession
     public long? LorebookId { get; set; }
     public long? PromptPresetId { get; set; }
     public string AuthorNote { get; set; } = string.Empty;
+    public string Summary { get; set; } = string.Empty;
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset UpdatedAt { get; set; }
 }

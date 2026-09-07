@@ -12,6 +12,8 @@ public sealed class ProviderSettings
     public int ContextLength { get; set; } = 8192;
     public bool AutoScanLocalModels { get; set; } = true;
     public bool IncludeCharacterContext { get; set; }
+    public bool IncludeKnowledgeContext { get; set; }
+    public bool IncludeImageContext { get; set; }
     [System.Text.Json.Serialization.JsonIgnore]
     public bool IsConfigured => Uri.TryCreate(BaseUrl, UriKind.Absolute, out _) && !string.IsNullOrWhiteSpace(Model);
 }

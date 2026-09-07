@@ -9,6 +9,9 @@ public sealed class ChatService(
     ChatSessionRepository sessionRepository,
     ChatMessageRepository messageRepository,
     MessageSwipeRepository swipeRepository,
+    ChatAttachmentRepository attachmentRepository,
+    AttachmentService attachmentService,
+    ConversationSummaryService summaryService,
     CharacterRepository characterRepository,
     PromptService promptService,
     SettingsService settingsService,
@@ -53,6 +56,14 @@ public sealed class ChatService(
     public Task<IReadOnlyList<ChatMessage>> GetMessagesAsync(long sessionId) =>
         messageRepository.GetBySessionAsync(sessionId);
 
+    public Task<IReadOnlyList<ChatAttachment>> GetAttachmentsAsync(long messageId) => attachmentRepository.GetByMessageAsync(messageId);
+
+    public async Task<PromptBuildResult> GetPromptPreviewAsync(ChatSession session)
+    {
+        var settings = await LoadConfiguredSettingsAsync();
+        return await promptService.BuildAsync(session, await messageRepository.GetBySessionAsync(session.Id), settings);
+    }
+
     public async Task<int> GetSwipeCountAsync(ChatMessage message) =>
         message.Role == ChatRole.Assistant ? (await EnsureSwipeHistoryAsync(message)).Count : 0;
 
@@ -95,7 +106,7 @@ public sealed class ChatService(
     }
 
     public async Task<ChatMessage> SendAsync(
-        ChatSession session, string input,
+        ChatSession session, string input, IReadOnlyList<string> imagePaths,
         Func<ChatMessage, ChatMessage, Task> onStarted,
         Func<ChatMessage, string, Task> onChunk,
         CancellationToken cancellationToken)
@@ -108,6 +119,7 @@ public sealed class ChatService(
             Content = input.Trim(), CreatedAt = now
         };
         await messageRepository.AddAsync(user);
+        if (imagePaths.Count > 0) await attachmentService.SaveImagesAsync(user.Id, imagePaths);
         var history = await messageRepository.GetBySessionAsync(session.Id);
         var assistant = new ChatMessage
         {
@@ -151,6 +163,8 @@ public sealed class ChatService(
             }
             session.UpdatedAt = assistant.UpdatedAt.Value;
             await sessionRepository.UpdateAsync(session);
+            try { await summaryService.UpdateIfNeededAsync(session); }
+            catch (Exception ex) { logger.LogWarning(ex, "Automatic summary update failed."); }
         }
         return assistant;
     }
@@ -214,7 +228,7 @@ public sealed class ChatService(
     public static IReadOnlyList<ChatCompletionMessage> BuildMessages(IEnumerable<ChatMessage> messages) =>
         messages.Select(message => new ChatCompletionMessage
         {
-            Role = message.Role.ToString().ToLowerInvariant(), Content = message.Content
+            Role = message.Role.ToString().ToLowerInvariant(), Content = message.Content, SourceMessageId = message.Id
         }).ToList();
 
     private async Task<ProviderSettings> LoadConfiguredSettingsAsync()
@@ -240,9 +254,21 @@ public sealed class ChatService(
             requestHistory = historyList.Skip(1);
 
         var prompt = await promptService.BuildAsync(session, requestHistory, settings);
+        var messages = new List<ChatCompletionMessage>();
+        foreach (var message in prompt.Messages)
+        {
+            var images = settings.IncludeImageContext && message.SourceMessageId is long messageId
+                ? await AttachmentService.ToDataUrlsAsync(await attachmentRepository.GetByMessageAsync(messageId))
+                : [];
+            messages.Add(new ChatCompletionMessage
+            {
+                Role = message.Role, Content = message.Content, SourceMessageId = message.SourceMessageId,
+                ImageDataUrls = images
+            });
+        }
         return new ChatCompletionRequest
         {
-            Model = prompt.Model, Messages = prompt.Messages,
+            Model = prompt.Model, Messages = messages,
             Temperature = prompt.Temperature, TopP = prompt.TopP,
             MaxTokens = prompt.MaxTokens, Stream = true
         };

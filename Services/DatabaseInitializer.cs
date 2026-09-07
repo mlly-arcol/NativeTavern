@@ -31,7 +31,8 @@ public sealed class DatabaseInitializer(DatabaseConnectionFactory connectionFact
             ["PersonaId"] = "ALTER TABLE ChatSessions ADD COLUMN PersonaId INTEGER NULL",
             ["LorebookId"] = "ALTER TABLE ChatSessions ADD COLUMN LorebookId INTEGER NULL",
             ["PromptPresetId"] = "ALTER TABLE ChatSessions ADD COLUMN PromptPresetId INTEGER NULL",
-            ["AuthorNote"] = "ALTER TABLE ChatSessions ADD COLUMN AuthorNote TEXT NOT NULL DEFAULT ''"
+            ["AuthorNote"] = "ALTER TABLE ChatSessions ADD COLUMN AuthorNote TEXT NOT NULL DEFAULT ''",
+            ["Summary"] = "ALTER TABLE ChatSessions ADD COLUMN Summary TEXT NOT NULL DEFAULT ''"
         };
         foreach (var migration in migrations.Where(x => !sessionColumns.Contains(x.Key)))
         {

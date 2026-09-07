@@ -2,9 +2,9 @@
 
 一个面向个人使用的 Windows 原生 AI 角色聊天客户端。
 
-## 当前版本：V0.5
+## 当前版本：V1.0
 
-当前仓库已实现基础 AI 对话、角色系统、长期聊天记录、Prompt Engine 和多模型 Provider：
+当前仓库已实现日常角色聊天所需的本地桌面闭环：
 
 - .NET 10 + WPF + CommunityToolkit.Mvvm
 - OpenAI Compatible Chat Completions
@@ -33,8 +33,14 @@
 - Ollama、LM Studio、KoboldCpp 和 llama.cpp 本地服务
 - 本地服务自动扫描与远程/本地模型列表发现
 - Provider 独立默认地址、Context Length 与连接测试
+- 聊天页 Prompt Token Counter 与 Prompt Inspector
+- 图片附件、图片拖放与视觉上下文开关
+- TXT、Markdown、PDF 本地知识库与检索式 RAG
+- 自动上下文摘要，长聊天保留近期消息与本地摘要
+- Windows 系统托盘、回复完成通知、全局快捷键
+- 窗口和聊天输入区的文件拖放
 
-聊天页中选择并点击 Apply Prompt 后，Persona、激活的 Lorebook 条目、Preset Prompt 和 Author Note 会随聊天内容发送到用户配置的模型 Provider；Clear 可解除当前会话的全部 Prompt 资源绑定。
+聊天页中选择并点击 Apply Prompt 后，Persona、激活的 Lorebook 条目、Preset Prompt 和 Author Note 会随聊天内容发送到用户配置的模型 Provider；Clear 可解除当前会话的全部 Prompt 资源绑定。知识库片段与图片附件默认只保留在本机，必须在 Settings 中分别启用发送开关才会随模型请求外发。
 
 开发构建：dotnet build -c Release
 
@@ -883,6 +889,8 @@ dotnet publish
 - 系统托盘
 - 快捷键
 
+状态：已完成。
+
 ### V0.7
 
 高级能力。
@@ -893,6 +901,8 @@ dotnet publish
 - 文档知识库
 - 图片附件
 - 自动摘要
+
+状态：已完成。
 
 ### V1.0
 
@@ -905,6 +915,8 @@ V1.0 不要求拥有 SillyTavern 的所有功能。
 判断是否完成的标准是：
 
 > 自己日常使用过程中已经不再需要打开 SillyTavern。
+
+状态：已完成。V1.0 聚焦个人日常角色聊天闭环，不包含插件商城、多用户或云同步。
 
 ---
 

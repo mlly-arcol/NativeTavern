@@ -15,5 +15,13 @@ public sealed class ChatCompletionRequest
 public sealed class ChatCompletionMessage
 {
     [JsonPropertyName("role")] public required string Role { get; init; }
-    [JsonPropertyName("content")] public required string Content { get; init; }
+    [JsonIgnore] public string Content { get; init; } = string.Empty;
+    [JsonIgnore] public long? SourceMessageId { get; init; }
+    [JsonIgnore] public IReadOnlyList<string> ImageDataUrls { get; init; } = [];
+    [JsonPropertyName("content")]
+    public object ContentPayload => ImageDataUrls.Count == 0
+        ? Content
+        : new object[] { new { type = "text", text = Content } }
+            .Concat(ImageDataUrls.Select(url => (object)new { type = "image_url", image_url = new { url } }))
+            .ToArray();
 }

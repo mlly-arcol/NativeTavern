@@ -56,4 +56,5 @@ public sealed class PromptBuildResult
     public double TopP { get; init; }
     public int MaxTokens { get; init; }
     public IReadOnlyList<string> ActivatedLoreEntries { get; init; } = [];
+    public int EstimatedTokens { get; init; }
 }

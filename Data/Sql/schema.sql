@@ -23,6 +23,7 @@ CREATE TABLE IF NOT EXISTS ChatSessions (
     LorebookId INTEGER NULL,
     PromptPresetId INTEGER NULL,
     AuthorNote TEXT NOT NULL DEFAULT '',
+    Summary TEXT NOT NULL DEFAULT '',
     CreatedAt TEXT NOT NULL,
     UpdatedAt TEXT NOT NULL
 );
@@ -91,3 +92,32 @@ CREATE TABLE IF NOT EXISTS PromptPresets (
     UpdatedAt TEXT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS AppSettings (Key TEXT PRIMARY KEY, Value TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS KnowledgeDocuments (
+    Id INTEGER PRIMARY KEY AUTOINCREMENT,
+    Name TEXT NOT NULL,
+    SourcePath TEXT NOT NULL,
+    ManagedPath TEXT NOT NULL,
+    MimeType TEXT NOT NULL,
+    IsEnabled INTEGER NOT NULL DEFAULT 1,
+    ChunkCount INTEGER NOT NULL DEFAULT 0,
+    CreatedAt TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS KnowledgeChunks (
+    Id INTEGER PRIMARY KEY AUTOINCREMENT,
+    DocumentId INTEGER NOT NULL,
+    ChunkIndex INTEGER NOT NULL,
+    Content TEXT NOT NULL,
+    FOREIGN KEY (DocumentId) REFERENCES KnowledgeDocuments(Id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS IX_KnowledgeChunks_DocumentId ON KnowledgeChunks(DocumentId);
+CREATE TABLE IF NOT EXISTS ChatAttachments (
+    Id INTEGER PRIMARY KEY AUTOINCREMENT,
+    ChatMessageId INTEGER NOT NULL,
+    FileName TEXT NOT NULL,
+    FilePath TEXT NOT NULL,
+    MimeType TEXT NOT NULL,
+    SizeBytes INTEGER NOT NULL,
+    CreatedAt TEXT NOT NULL,
+    FOREIGN KEY (ChatMessageId) REFERENCES ChatMessages(Id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS IX_ChatAttachments_ChatMessageId ON ChatAttachments(ChatMessageId);

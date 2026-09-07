@@ -29,6 +29,8 @@ public partial class SettingsViewModel(
     [ObservableProperty] private int _contextLength = 8192;
     [ObservableProperty] private bool _autoScanLocalModels = true;
     [ObservableProperty] private bool _includeCharacterContext;
+    [ObservableProperty] private bool _includeKnowledgeContext;
+    [ObservableProperty] private bool _includeImageContext;
     [ObservableProperty] private string? _statusMessage;
     [ObservableProperty] private bool _isBusy;
     private bool _clearApiKey;
@@ -50,6 +52,8 @@ public partial class SettingsViewModel(
         ContextLength = resolved.Settings.ContextLength;
         AutoScanLocalModels = resolved.Settings.AutoScanLocalModels;
         IncludeCharacterContext = resolved.Settings.IncludeCharacterContext;
+        IncludeKnowledgeContext = resolved.Settings.IncludeKnowledgeContext;
+        IncludeImageContext = resolved.Settings.IncludeImageContext;
         _initializing = false;
         if (AutoScanLocalModels) await ScanLocalAsync();
     }
@@ -169,7 +173,9 @@ public partial class SettingsViewModel(
             MaxTokens = MaxTokens,
             ContextLength = ContextLength,
             AutoScanLocalModels = AutoScanLocalModels,
-            IncludeCharacterContext = IncludeCharacterContext
+            IncludeCharacterContext = IncludeCharacterContext,
+            IncludeKnowledgeContext = IncludeKnowledgeContext,
+            IncludeImageContext = IncludeImageContext
         };
         if (!Uri.TryCreate(settings.BaseUrl, UriKind.Absolute, out _))
         {
