@@ -6,6 +6,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
+    <ApplicationIcon>Assets\NativeTavern.ico</ApplicationIcon>
     <Version>1.0.0</Version>
     <AssemblyName>NativeTavern</AssemblyName>
     <RootNamespace>NativeTavern</RootNamespace>
@@ -24,6 +25,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Resource Include="Assets\NativeTavern.png" />
     <None Remove="Data\Sql\schema.sql" />
     <EmbeddedResource Include="Data\Sql\schema.sql"
                       LogicalName="NativeTavern.Data.Sql.schema.sql" />
