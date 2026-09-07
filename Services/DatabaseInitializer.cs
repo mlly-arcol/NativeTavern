@@ -8,11 +8,14 @@ public sealed class DatabaseInitializer(DatabaseConnectionFactory connectionFact
 {
     public async Task InitializeAsync()
     {
-        var schemaPath = Path.Combine(AppContext.BaseDirectory, "Data", "Sql", "schema.sql");
-        if (!File.Exists(schemaPath)) throw new FileNotFoundException("Database schema file is missing.", schemaPath);
+        await using var schemaStream = typeof(DatabaseInitializer).Assembly
+            .GetManifestResourceStream("NativeTavern.Data.Sql.schema.sql")
+            ?? throw new InvalidOperationException("Embedded database schema is missing.");
+        using var schemaReader = new StreamReader(schemaStream);
+        var schema = await schemaReader.ReadToEndAsync();
         await using var connection = connectionFactory.CreateConnection();
         await connection.OpenAsync();
-        await connection.ExecuteAsync(await File.ReadAllTextAsync(schemaPath));
+        await connection.ExecuteAsync(schema);
         logger.LogInformation("Database initialized at {DatabasePath}", Helpers.AppPaths.DatabaseFile);
     }
 }

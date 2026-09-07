@@ -20,6 +20,8 @@ Windows x64 发布：dotnet publish -c Release -r win-x64 --self-contained false
 
 运行后数据写入 %LOCALAPPDATA%\NativeTavern\。首次使用请在 Settings 中填写 Base URL、API Key 与模型名称，并先执行连接测试。
 
+仓库根目录的 NativeTavern.exe 是可直接启动的单文件版本，需要目标电脑安装 .NET 10 Desktop Runtime。
+
 ## 一、项目定位
 
 NativeTavern 的目标不是完整复刻 SillyTavern 的所有功能，也不是单纯将 SillyTavern 套壳成桌面程序。
