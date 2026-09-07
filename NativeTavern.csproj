@@ -25,6 +25,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Resource Include="Assets\NativeTavern.ico" />
     <Resource Include="Assets\NativeTavern.png" />
     <None Remove="Data\Sql\schema.sql" />
     <EmbeddedResource Include="Data\Sql\schema.sql"
