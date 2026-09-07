@@ -22,7 +22,6 @@ public partial class MainWindow : Window
         InitializeComponent();
         DataContext = viewModel;
         PreviewKeyDown += OnPreviewKeyDown;
-        StateChanged += (_, _) => { if (WindowState == WindowState.Minimized) Hide(); };
     }
 
     private void OnPreviewKeyDown(object sender, KeyEventArgs e)
