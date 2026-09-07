@@ -90,6 +90,7 @@ public partial class App : Application
         services.AddHttpClient<ClaudeProvider>(client => client.Timeout = Timeout.InfiniteTimeSpan);
         services.AddSingleton<ProviderRouter>();
         services.AddSingleton<ProviderDiscoveryService>();
+        services.AddSingleton<LocalModelService>();
         services.AddSingleton<ILLMProvider>(provider => provider.GetRequiredService<ProviderRouter>());
         services.AddSingleton<ChatService>();
         services.AddSingleton<ChatViewModel>();

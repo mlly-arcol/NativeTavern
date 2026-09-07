@@ -13,6 +13,7 @@
 - Windows DPAPI 加密 API Key
 - 参考桌面版 GPT 的统一浅色设计：工作区侧栏、居中消息流、圆角悬浮输入框和一致的控件状态
 - 中文 / English 界面语言即时切换与持久化
+- 从 SillyTavern 模型目录发现 GGUF 文件，并通过 KoboldCpp 在应用内启动、切换和连接
 - 本地文件日志与常见 HTTP 错误提示
 - 角色创建、编辑、删除、搜索、标签与收藏
 - PNG Character Card V2/V3 与 JSON Character Card 导入

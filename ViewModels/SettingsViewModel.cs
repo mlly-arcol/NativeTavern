@@ -13,6 +13,7 @@ public partial class SettingsViewModel(
     LocalizationService localizationService,
     ProviderRouter provider,
     ProviderDiscoveryService discoveryService,
+    LocalModelService localModelService,
     ILogger<SettingsViewModel> logger) : ObservableObject
 {
     public IReadOnlyList<LanguageOption> Languages { get; } =
@@ -23,10 +24,14 @@ public partial class SettingsViewModel(
     public IReadOnlyList<ProviderProfile> ProviderProfiles { get; } = ProviderProfile.All;
     public ObservableCollection<ModelInfo> AvailableModels { get; } = [];
     public ObservableCollection<DetectedProvider> DetectedServices { get; } = [];
+    public ObservableCollection<LocalModelFile> LocalModels { get; } = [];
 
     [ObservableProperty] private ProviderProfile? _selectedProvider;
     [ObservableProperty] private LanguageOption? _selectedLanguage;
     [ObservableProperty] private DetectedProvider? _selectedDetectedService;
+    [ObservableProperty] private LocalModelFile? _selectedLocalModel;
+    [ObservableProperty] private string _localModelDirectory = LocalModelService.DefaultModelDirectory;
+    [ObservableProperty] private string _koboldCppPath = LocalModelService.DefaultKoboldCppPath;
     [ObservableProperty] private string _baseUrl = "https://api.openai.com/v1";
     [ObservableProperty] private string _apiKey = string.Empty;
     [ObservableProperty] private string _model = string.Empty;
@@ -59,6 +64,11 @@ public partial class SettingsViewModel(
         MaxTokens = resolved.Settings.MaxTokens;
         ContextLength = resolved.Settings.ContextLength;
         AutoScanLocalModels = resolved.Settings.AutoScanLocalModels;
+        LocalModelDirectory = string.IsNullOrWhiteSpace(resolved.Settings.LocalModelDirectory)
+            ? LocalModelService.DefaultModelDirectory : resolved.Settings.LocalModelDirectory;
+        KoboldCppPath = string.IsNullOrWhiteSpace(resolved.Settings.KoboldCppPath)
+            ? LocalModelService.DefaultKoboldCppPath : resolved.Settings.KoboldCppPath;
+        RefreshLocalModelFiles(resolved.Settings.SelectedLocalModelPath);
         IncludeCharacterContext = resolved.Settings.IncludeCharacterContext;
         IncludeKnowledgeContext = resolved.Settings.IncludeKnowledgeContext;
         IncludeImageContext = resolved.Settings.IncludeImageContext;
@@ -137,12 +147,13 @@ public partial class SettingsViewModel(
         StatusMessage = L("正在扫描本地模型服务…", "Scanning local model services…");
         try
         {
+            RefreshLocalModelFiles(SelectedLocalModel?.FilePath);
             var detected = await discoveryService.ScanLocalAsync(CancellationToken.None);
             DetectedServices.Clear();
             foreach (var service in detected) DetectedServices.Add(service);
-            StatusMessage = detected.Count == 0
-                ? L("未检测到本地模型服务。", "No local model services detected.")
-                : L($"检测到 {detected.Count} 个本地模型服务。", $"Detected {detected.Count} local model services.");
+            StatusMessage = L(
+                $"发现 {LocalModels.Count} 个 GGUF 模型；检测到 {detected.Count} 个运行中的本地服务。",
+                $"Found {LocalModels.Count} GGUF models and {detected.Count} running local services.");
         }
         catch (Exception ex)
         {
@@ -150,6 +161,49 @@ public partial class SettingsViewModel(
             StatusMessage = L("本地扫描失败，请查看日志。", "Local scan failed. Check the log.");
         }
         finally { IsBusy = false; }
+    }
+
+    [RelayCommand]
+    private async Task StartSelectedLocalModelAsync()
+    {
+        if (SelectedLocalModel is null)
+        {
+            StatusMessage = L("请先选择一个 GGUF 模型。", "Select a GGUF model first.");
+            return;
+        }
+
+        IsBusy = true;
+        StatusMessage = L($"正在加载 {SelectedLocalModel.Name}…", $"Loading {SelectedLocalModel.Name}…");
+        try
+        {
+            await localModelService.StartAsync(KoboldCppPath.Trim(), SelectedLocalModel, CancellationToken.None);
+            var profile = ProviderProfiles.First(x => x.Id == "koboldcpp");
+            _initializing = true;
+            SelectedProvider = profile;
+            BaseUrl = profile.DefaultBaseUrl;
+            _initializing = false;
+
+            var settings = BuildCurrentSettings();
+            var models = await provider.GetModelsAsync(settings, string.Empty, CancellationToken.None);
+            AvailableModels.Clear();
+            foreach (var availableModel in models) AvailableModels.Add(availableModel);
+            Model = models.FirstOrDefault()?.Id ?? Path.GetFileNameWithoutExtension(SelectedLocalModel.Name);
+
+            settings = BuildCurrentSettings();
+            await settingsService.SaveAsync(settings, apiKey: null);
+            StatusMessage = L($"已连接 {SelectedLocalModel.Name}。", $"Connected to {SelectedLocalModel.Name}.");
+            Saved?.Invoke();
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Starting local GGUF model failed.");
+            StatusMessage = L($"模型启动失败：{ex.Message}", $"Failed to start model: {ex.Message}");
+        }
+        finally
+        {
+            _initializing = false;
+            IsBusy = false;
+        }
     }
 
     [RelayCommand]
@@ -174,21 +228,7 @@ public partial class SettingsViewModel(
 
     private bool TryBuildSettings(out ProviderSettings settings, bool requireModel = true)
     {
-        settings = new ProviderSettings
-        {
-            LanguageCode = SelectedLanguage?.Code ?? LocalizationService.Chinese,
-            ProviderId = SelectedProvider?.Id ?? "openai-compatible",
-            BaseUrl = BaseUrl.Trim(),
-            Model = Model.Trim(),
-            Temperature = Temperature,
-            TopP = TopP,
-            MaxTokens = MaxTokens,
-            ContextLength = ContextLength,
-            AutoScanLocalModels = AutoScanLocalModels,
-            IncludeCharacterContext = IncludeCharacterContext,
-            IncludeKnowledgeContext = IncludeKnowledgeContext,
-            IncludeImageContext = IncludeImageContext
-        };
+        settings = BuildCurrentSettings();
         if (!Uri.TryCreate(settings.BaseUrl, UriKind.Absolute, out _))
         {
             StatusMessage = L("请输入有效的 Base URL。", "Enter a valid Base URL.");
@@ -210,6 +250,36 @@ public partial class SettingsViewModel(
             return false;
         }
         return true;
+    }
+
+    private ProviderSettings BuildCurrentSettings()
+    {
+        return new ProviderSettings
+        {
+            LanguageCode = SelectedLanguage?.Code ?? LocalizationService.Chinese,
+            ProviderId = SelectedProvider?.Id ?? "openai-compatible",
+            BaseUrl = BaseUrl.Trim(),
+            Model = Model.Trim(),
+            Temperature = Temperature,
+            TopP = TopP,
+            MaxTokens = MaxTokens,
+            ContextLength = ContextLength,
+            AutoScanLocalModels = AutoScanLocalModels,
+            LocalModelDirectory = LocalModelDirectory.Trim(),
+            KoboldCppPath = KoboldCppPath.Trim(),
+            SelectedLocalModelPath = SelectedLocalModel?.FilePath ?? string.Empty,
+            IncludeCharacterContext = IncludeCharacterContext,
+            IncludeKnowledgeContext = IncludeKnowledgeContext,
+            IncludeImageContext = IncludeImageContext
+        };
+    }
+
+    private void RefreshLocalModelFiles(string? selectedPath)
+    {
+        LocalModels.Clear();
+        foreach (var localModel in localModelService.Scan(LocalModelDirectory.Trim())) LocalModels.Add(localModel);
+        SelectedLocalModel = LocalModels.FirstOrDefault(x =>
+            string.Equals(x.FilePath, selectedPath, StringComparison.OrdinalIgnoreCase)) ?? LocalModels.FirstOrDefault();
     }
 
     partial void OnApiKeyChanged(string value)

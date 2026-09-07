@@ -12,6 +12,9 @@ public sealed class ProviderSettings
     public int MaxTokens { get; set; } = 1024;
     public int ContextLength { get; set; } = 8192;
     public bool AutoScanLocalModels { get; set; } = true;
+    public string LocalModelDirectory { get; set; } = Services.LocalModelService.DefaultModelDirectory;
+    public string KoboldCppPath { get; set; } = Services.LocalModelService.DefaultKoboldCppPath;
+    public string SelectedLocalModelPath { get; set; } = string.Empty;
     public bool IncludeCharacterContext { get; set; }
     public bool IncludeKnowledgeContext { get; set; }
     public bool IncludeImageContext { get; set; }
