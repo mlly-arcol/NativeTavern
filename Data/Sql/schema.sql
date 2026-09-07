@@ -1,0 +1,19 @@
+PRAGMA foreign_keys = ON;
+CREATE TABLE IF NOT EXISTS ChatSessions (
+    Id INTEGER PRIMARY KEY AUTOINCREMENT,
+    Title TEXT NOT NULL,
+    CharacterId INTEGER NULL,
+    CreatedAt TEXT NOT NULL,
+    UpdatedAt TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS ChatMessages (
+    Id INTEGER PRIMARY KEY AUTOINCREMENT,
+    ChatSessionId INTEGER NOT NULL,
+    Role TEXT NOT NULL,
+    Content TEXT NOT NULL,
+    CreatedAt TEXT NOT NULL,
+    UpdatedAt TEXT NULL,
+    FOREIGN KEY (ChatSessionId) REFERENCES ChatSessions(Id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS IX_ChatMessages_ChatSessionId ON ChatMessages(ChatSessionId);
+CREATE TABLE IF NOT EXISTS AppSettings (Key TEXT PRIMARY KEY, Value TEXT NOT NULL);

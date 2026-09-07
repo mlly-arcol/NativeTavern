@@ -1,0 +1,47 @@
+﻿<Application x:Class="NativeTavern.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:NativeTavern"
+             xmlns:views="clr-namespace:NativeTavern.Views"
+             xmlns:vm="clr-namespace:NativeTavern.ViewModels"
+             xmlns:conv="clr-namespace:NativeTavern.Converters">
+    <Application.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVisibility" />
+        <conv:InverseBooleanToVisibilityConverter x:Key="InverseBoolToVisibility" />
+        <conv:StringToVisibilityConverter x:Key="StringToVisibility" />
+        <SolidColorBrush x:Key="WindowBrush" Color="#111318" />
+        <SolidColorBrush x:Key="PanelBrush" Color="#191C23" />
+        <SolidColorBrush x:Key="CardBrush" Color="#222630" />
+        <SolidColorBrush x:Key="AccentBrush" Color="#8B7CF6" />
+        <SolidColorBrush x:Key="TextBrush" Color="#F5F5F7" />
+        <SolidColorBrush x:Key="MutedTextBrush" Color="#A7ABB6" />
+        <SolidColorBrush x:Key="BorderBrush" Color="#343946" />
+        <Style TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
+            <Setter Property="FontFamily" Value="Segoe UI" />
+        </Style>
+        <Style TargetType="Button">
+            <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
+            <Setter Property="Background" Value="{StaticResource CardBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}" />
+            <Setter Property="Padding" Value="16,9" />
+            <Setter Property="Margin" Value="0,0,8,0" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+        <Style TargetType="TextBox">
+            <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
+            <Setter Property="Background" Value="{StaticResource CardBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}" />
+            <Setter Property="CaretBrush" Value="{StaticResource TextBrush}" />
+            <Setter Property="Padding" Value="10,8" />
+        </Style>
+        <Style TargetType="PasswordBox">
+            <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
+            <Setter Property="Background" Value="{StaticResource CardBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}" />
+            <Setter Property="Padding" Value="10,8" />
+        </Style>
+        <DataTemplate DataType="{x:Type vm:ChatViewModel}"><views:ChatView /></DataTemplate>
+        <DataTemplate DataType="{x:Type vm:SettingsViewModel}"><views:SettingsView /></DataTemplate>
+    </Application.Resources>
+</Application>

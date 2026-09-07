@@ -1,0 +1,69 @@
+using Dapper;
+using NativeTavern.Models;
+
+namespace NativeTavern.Data.Repositories;
+
+public sealed class ChatSessionRepository(DatabaseConnectionFactory connectionFactory)
+{
+    public async Task<long> CreateAsync(ChatSession session)
+    {
+        await using var connection = connectionFactory.CreateConnection();
+        session.Id = await connection.ExecuteScalarAsync<long>(
+            "INSERT INTO ChatSessions(Title,CharacterId,CreatedAt,UpdatedAt) " +
+            "VALUES(@Title,@CharacterId,@CreatedAt,@UpdatedAt); SELECT last_insert_rowid();",
+            ToParameters(session));
+        return session.Id;
+    }
+
+    public async Task<ChatSession?> GetAsync(long id)
+    {
+        await using var connection = connectionFactory.CreateConnection();
+        var row = await connection.QuerySingleOrDefaultAsync<SessionRow>(
+            "SELECT * FROM ChatSessions WHERE Id=@id", new { id });
+        return row?.ToModel();
+    }
+
+    public async Task<IReadOnlyList<ChatSession>> GetAllAsync()
+    {
+        await using var connection = connectionFactory.CreateConnection();
+        var rows = await connection.QueryAsync<SessionRow>(
+            "SELECT * FROM ChatSessions ORDER BY UpdatedAt DESC");
+        return rows.Select(x => x.ToModel()).ToList();
+    }
+
+    public async Task UpdateAsync(ChatSession session)
+    {
+        await using var connection = connectionFactory.CreateConnection();
+        await connection.ExecuteAsync(
+            "UPDATE ChatSessions SET Title=@Title,CharacterId=@CharacterId,UpdatedAt=@UpdatedAt WHERE Id=@Id",
+            ToParameters(session));
+    }
+
+    public async Task DeleteAsync(long id)
+    {
+        await using var connection = connectionFactory.CreateConnection();
+        await connection.ExecuteAsync("DELETE FROM ChatSessions WHERE Id=@id", new { id });
+    }
+
+    private static object ToParameters(ChatSession value) => new
+    {
+        value.Id, value.Title, value.CharacterId,
+        CreatedAt = value.CreatedAt.ToString("O"),
+        UpdatedAt = value.UpdatedAt.ToString("O")
+    };
+
+    private sealed class SessionRow
+    {
+        public long Id { get; init; }
+        public string Title { get; init; } = string.Empty;
+        public long? CharacterId { get; init; }
+        public string CreatedAt { get; init; } = string.Empty;
+        public string UpdatedAt { get; init; } = string.Empty;
+        public ChatSession ToModel() => new()
+        {
+            Id = Id, Title = Title, CharacterId = CharacterId,
+            CreatedAt = DateTimeOffset.Parse(CreatedAt),
+            UpdatedAt = DateTimeOffset.Parse(UpdatedAt)
+        };
+    }
+}
