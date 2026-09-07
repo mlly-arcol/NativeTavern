@@ -5,7 +5,7 @@ namespace NativeTavern.Services;
 
 public sealed class LocalModelService : IDisposable
 {
-    public static string DefaultModelDirectory => Path.Combine(AppContext.BaseDirectory, "models");
+    public static string DefaultModelDirectory => Path.Combine(AppContext.BaseDirectory, "LocalModels");
     public const string LegacyModelDirectory = @"E:\BaiduNetdiskDownload\SillyTavern\models";
     public const string DefaultModelFileName = "Qwen3-8B-Q4_K_M.gguf";
     public const string DefaultKoboldCppPath = @"E:\BaiduNetdiskDownload\SillyTavern\KoboldCpp\koboldcpp.exe";
