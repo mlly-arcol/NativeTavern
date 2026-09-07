@@ -44,6 +44,13 @@ public partial class MainViewModel : ObservableObject
     private void ShowChat() => CurrentViewModel = Chat;
 
     [RelayCommand]
+    private void NewChat()
+    {
+        CurrentViewModel = Chat;
+        if (Chat.NewChatCommand.CanExecute(null)) Chat.NewChatCommand.Execute(null);
+    }
+
+    [RelayCommand]
     private void ShowSettings() => CurrentViewModel = Settings;
 
     [RelayCommand]

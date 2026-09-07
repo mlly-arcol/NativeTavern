@@ -1,22 +1,46 @@
-﻿<Window x:Class="NativeTavern.MainWindow"
+<Window x:Class="NativeTavern.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="NativeTavern" Height="800" Width="1200" MinHeight="600" MinWidth="900"
-        WindowStartupLocation="CenterScreen" Background="{StaticResource WindowBrush}" AllowDrop="True" Drop="Window_OnDrop">
+        Title="NativeTavern" Height="820" Width="1280" MinHeight="640" MinWidth="960"
+        WindowStartupLocation="CenterScreen" Background="{StaticResource WindowBrush}"
+        FontFamily="Segoe UI Variable Text, Segoe UI" AllowDrop="True" Drop="Window_OnDrop">
     <Grid>
-        <Grid.ColumnDefinitions><ColumnDefinition Width="210" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
-        <Border Grid.Column="0" Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,1,0">
-            <DockPanel Margin="18">
+        <Grid.ColumnDefinitions><ColumnDefinition Width="250" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+        <Border Grid.Column="0" Background="{StaticResource SidebarBrush}" BorderBrush="#2B2B2B" BorderThickness="0,0,1,0">
+            <DockPanel Margin="10,12">
                 <StackPanel DockPanel.Dock="Top">
-                    <TextBlock Text="NativeTavern" FontSize="22" FontWeight="SemiBold" Margin="8,8,0,28" />
-                    <Button Content="💬  Chat" HorizontalContentAlignment="Left" Command="{Binding ShowChatCommand}" Margin="0,0,0,10" />
-                    <Button Content="👤  Characters" HorizontalContentAlignment="Left" Command="{Binding ShowCharactersCommand}" Margin="0,0,0,10" />
-                    <Button Content="📜  Prompt Studio" HorizontalContentAlignment="Left" Command="{Binding ShowPromptStudioCommand}" Margin="0,0,0,10" />
-                    <Button Content="📚  Knowledge Base" HorizontalContentAlignment="Left" Command="{Binding ShowKnowledgeCommand}" Margin="0,0,0,10" />
-                    <Button Content="🔎  Prompt Inspector" HorizontalContentAlignment="Left" Command="{Binding ShowPromptInspectorCommand}" Margin="0,0,0,10" />
-                    <Button Content="⚙  Settings" HorizontalContentAlignment="Left" Command="{Binding ShowSettingsCommand}" />
+                    <Grid Margin="8,4,8,16">
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                        <Border Width="30" Height="30" CornerRadius="9" Background="{StaticResource AccentBrush}">
+                            <TextBlock Text="N" FontSize="15" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <StackPanel Grid.Column="1" Margin="10,0,0,0" VerticalAlignment="Center">
+                            <TextBlock Text="NativeTavern" FontSize="15" FontWeight="SemiBold" />
+                            <TextBlock Text="Local AI workspace" FontSize="10" Foreground="{StaticResource SubtleTextBrush}" />
+                        </StackPanel>
+                    </Grid>
+                    <Button Style="{StaticResource NavButtonStyle}" Command="{Binding NewChatCommand}" Margin="0,0,0,12">
+                        <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="24"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                            <TextBlock Text="＋" FontSize="18" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="1" Text="New chat" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="2" Text="Ctrl N" FontSize="10" Foreground="{StaticResource SubtleTextBrush}" VerticalAlignment="Center"/>
+                        </Grid>
+                    </Button>
+                    <TextBlock Text="WORKSPACE" FontSize="10" FontWeight="SemiBold" Foreground="{StaticResource SubtleTextBrush}" Margin="12,6,0,6" />
+                    <Button Content="◉   Chat" Style="{StaticResource NavButtonStyle}" Command="{Binding ShowChatCommand}" />
+                    <Button Content="♙   Characters" Style="{StaticResource NavButtonStyle}" Command="{Binding ShowCharactersCommand}" />
+                    <Button Content="⌁   Prompt Studio" Style="{StaticResource NavButtonStyle}" Command="{Binding ShowPromptStudioCommand}" />
+                    <Button Content="▤   Knowledge Base" Style="{StaticResource NavButtonStyle}" Command="{Binding ShowKnowledgeCommand}" />
+                    <Button Content="⌕   Prompt Inspector" Style="{StaticResource NavButtonStyle}" Command="{Binding ShowPromptInspectorCommand}" />
                 </StackPanel>
-                <TextBlock DockPanel.Dock="Bottom" Text="v1.0.0" Foreground="{StaticResource MutedTextBrush}" HorizontalAlignment="Center" Margin="0,0,0,8" />
+                <StackPanel DockPanel.Dock="Bottom">
+                    <Separator Margin="6,8" />
+                    <Button Content="⚙   Settings" Style="{StaticResource NavButtonStyle}" Command="{Binding ShowSettingsCommand}" />
+                    <Grid Margin="12,9,12,5">
+                        <TextBlock Text="NativeTavern" FontSize="11" Foreground="{StaticResource MutedTextBrush}" />
+                        <TextBlock Text="v1.0.0" FontSize="10" Foreground="{StaticResource SubtleTextBrush}" HorizontalAlignment="Right" />
+                    </Grid>
+                </StackPanel>
             </DockPanel>
         </Border>
         <ContentControl Grid.Column="1" Content="{Binding CurrentViewModel}" />
