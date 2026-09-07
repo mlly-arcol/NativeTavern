@@ -12,8 +12,7 @@ public sealed record ProviderProfile(string Id, string DisplayName, string Defau
         new("gemini", "Gemini", "https://generativelanguage.googleapis.com/v1beta/openai", true),
         new("ollama", "Ollama", "http://localhost:11434/v1", false, true),
         new("lmstudio", "LM Studio", "http://localhost:1234/v1", false, true),
-        new("koboldcpp", "KoboldCpp", "http://localhost:5001/v1", false, true),
-        new("llamacpp", "llama.cpp server", "http://localhost:8080/v1", false, true)
+        new("llamacpp", "llama.cpp server", "http://127.0.0.1:8080/v1", false, true)
     ];
 }
 

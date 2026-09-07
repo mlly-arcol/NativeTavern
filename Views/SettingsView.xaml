@@ -24,7 +24,7 @@
    <TextBlock Text="GGUF model files" FontWeight="SemiBold" Margin="2,2,0,7"/>
    <Grid Margin="0,0,0,10"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
     <ComboBox ItemsSource="{Binding LocalModels}" SelectedItem="{Binding SelectedLocalModel}" DisplayMemberPath="DisplayName" ToolTip="The selected model starts with llama.cpp server on 127.0.0.1:8080"/>
-    <Button Grid.Column="1" Content="Start and Connect" Command="{Binding StartSelectedLocalModelCommand}" Style="{StaticResource PrimaryButtonStyle}" Margin="8,0,0,0"/>
+    <Button Grid.Column="1" Content="Start llama.cpp and Connect" Command="{Binding StartSelectedLocalModelCommand}" Style="{StaticResource PrimaryButtonStyle}" Margin="8,0,0,0"/>
    </Grid>
    <TextBlock Text="Running local services" FontWeight="SemiBold" Margin="2,2,0,7"/>
    <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
