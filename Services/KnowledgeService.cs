@@ -1,4 +1,5 @@
 using System.Text;
+using Microsoft.Extensions.Logging;
 using NativeTavern.Data.Repositories;
 using NativeTavern.Helpers;
 using NativeTavern.Models;
@@ -6,7 +7,9 @@ using UglyToad.PdfPig;
 
 namespace NativeTavern.Services;
 
-public sealed class KnowledgeService(KnowledgeRepository repository)
+public sealed class KnowledgeService(
+    KnowledgeRepository repository,
+    ILogger<KnowledgeService> logger)
 {
     private const long MaxFileSize = 20 * 1024 * 1024;
 
@@ -32,7 +35,15 @@ public sealed class KnowledgeService(KnowledgeRepository repository)
             MimeType = extension == ".pdf" ? "application/pdf" : "text/plain", IsEnabled = true,
             CreatedAt = DateTimeOffset.UtcNow
         };
-        await repository.AddAsync(document, chunks);
+        try
+        {
+            await repository.AddAsync(document, chunks);
+        }
+        catch
+        {
+            ManagedFile.TryDelete(destination, AppPaths.DocumentsDirectory, logger);
+            throw;
+        }
         return document;
     }
 
@@ -41,7 +52,7 @@ public sealed class KnowledgeService(KnowledgeRepository repository)
     public async Task DeleteAsync(KnowledgeDocument document)
     {
         await repository.DeleteAsync(document.Id);
-        if (File.Exists(document.ManagedPath)) File.Delete(document.ManagedPath);
+        ManagedFile.TryDelete(document.ManagedPath, AppPaths.DocumentsDirectory, logger);
     }
 
     public async Task<IReadOnlyList<string>> SearchAsync(string query, int maxResults = 4)

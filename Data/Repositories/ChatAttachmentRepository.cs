@@ -20,5 +20,15 @@ public sealed class ChatAttachmentRepository(DatabaseConnectionFactory connectio
         return rows.Select(x => new ChatAttachment { Id=x.Id, ChatMessageId=x.ChatMessageId, FileName=x.FileName, FilePath=x.FilePath, MimeType=x.MimeType, SizeBytes=x.SizeBytes, CreatedAt=DateTimeOffset.Parse(x.CreatedAt) }).ToList();
     }
 
+    public async Task<IReadOnlyList<ChatAttachment>> GetBySessionAsync(long chatSessionId)
+    {
+        await using var connection = connectionFactory.CreateConnection();
+        var rows = await connection.QueryAsync<Row>(
+            "SELECT a.* FROM ChatAttachments a INNER JOIN ChatMessages m ON m.Id=a.ChatMessageId " +
+            "WHERE m.ChatSessionId=@chatSessionId ORDER BY a.Id",
+            new { chatSessionId });
+        return rows.Select(x => new ChatAttachment { Id=x.Id, ChatMessageId=x.ChatMessageId, FileName=x.FileName, FilePath=x.FilePath, MimeType=x.MimeType, SizeBytes=x.SizeBytes, CreatedAt=DateTimeOffset.Parse(x.CreatedAt) }).ToList();
+    }
+
     private sealed class Row { public long Id { get; init; } public long ChatMessageId { get; init; } public string FileName { get; init; } = ""; public string FilePath { get; init; } = ""; public string MimeType { get; init; } = ""; public long SizeBytes { get; init; } public string CreatedAt { get; init; } = ""; }
 }

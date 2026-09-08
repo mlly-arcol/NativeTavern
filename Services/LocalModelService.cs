@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.ComponentModel;
 using NativeTavern.Models;
 
 namespace NativeTavern.Services;
@@ -23,7 +24,11 @@ public sealed class LocalModelService : IDisposable
             .ToList();
     }
 
-    public async Task StartAsync(string llamaCppPath, LocalModelFile model, CancellationToken cancellationToken)
+    public async Task StartAsync(
+        string llamaCppPath,
+        LocalModelFile model,
+        int contextLength,
+        CancellationToken cancellationToken)
     {
         if (!File.Exists(llamaCppPath))
             throw new FileNotFoundException("llama.cpp server executable was not found.", llamaCppPath);
@@ -41,28 +46,37 @@ public sealed class LocalModelService : IDisposable
         foreach (var argument in new[]
                  {
                      "--model", model.FilePath, "--host", "127.0.0.1", "--port", "8080",
-                     "--ctx-size", "8192", "--n-gpu-layers", "35", "--jinja",
-                     "--alias", "NativeTavern-Qwen3"
+                     "--ctx-size", Math.Clamp(contextLength, 512, 262144).ToString(),
+                     "--n-gpu-layers", "35", "--jinja",
+                     "--alias", "NativeTavern-Local"
                  })
             startInfo.ArgumentList.Add(argument);
 
         _ownedProcess = Process.Start(startInfo) ?? throw new InvalidOperationException("llama.cpp server could not be started.");
-        var deadline = DateTime.UtcNow.AddMinutes(2);
-        while (DateTime.UtcNow < deadline)
+        try
         {
-            cancellationToken.ThrowIfCancellationRequested();
-            if (_ownedProcess.HasExited)
-                throw new InvalidOperationException($"llama.cpp server exited with code {_ownedProcess.ExitCode}.");
-            try
+            var deadline = DateTime.UtcNow.AddMinutes(2);
+            while (DateTime.UtcNow < deadline)
             {
-                using var response = await _client.GetAsync(ModelsEndpoint, cancellationToken);
-                if (response.IsSuccessStatusCode) return;
+                cancellationToken.ThrowIfCancellationRequested();
+                if (_ownedProcess.HasExited)
+                    throw new InvalidOperationException($"llama.cpp server exited with code {_ownedProcess.ExitCode}.");
+                try
+                {
+                    using var response = await _client.GetAsync(ModelsEndpoint, cancellationToken);
+                    if (response.IsSuccessStatusCode) return;
+                }
+                catch (HttpRequestException) { }
+                catch (TaskCanceledException) when (!cancellationToken.IsCancellationRequested) { }
+                await Task.Delay(1000, cancellationToken);
             }
-            catch (HttpRequestException) { }
-            catch (TaskCanceledException) when (!cancellationToken.IsCancellationRequested) { }
-            await Task.Delay(1000, cancellationToken);
+            throw new TimeoutException("llama.cpp server did not become ready within two minutes.");
         }
-        throw new TimeoutException("llama.cpp server did not become ready within two minutes.");
+        catch
+        {
+            StopOwnedProcess();
+            throw;
+        }
     }
 
     private void StopOwnedProcess()
@@ -72,7 +86,7 @@ public sealed class LocalModelService : IDisposable
         {
             if (!_ownedProcess.HasExited) _ownedProcess.Kill(entireProcessTree: true);
         }
-        catch (InvalidOperationException) { }
+        catch (Exception ex) when (ex is InvalidOperationException or Win32Exception or NotSupportedException) { }
         finally
         {
             _ownedProcess.Dispose();

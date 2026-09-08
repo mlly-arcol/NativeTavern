@@ -28,7 +28,7 @@ public sealed class OpenAICompatibleProvider(
     public async Task<IReadOnlyList<ModelInfo>> GetModelsAsync(
         ProviderSettings settings, string apiKey, CancellationToken cancellationToken)
     {
-        if (!Uri.TryCreate(settings.BaseUrl, UriKind.Absolute, out _))
+        if (!ProviderSettings.IsValidBaseUrl(settings.BaseUrl))
             throw new ProviderException("Base URL 格式无效。");
         using var request = new HttpRequestMessage(HttpMethod.Get, settings.BaseUrl.TrimEnd('/') + "/models");
         AddHeaders(request, settings, apiKey);
@@ -150,7 +150,7 @@ public sealed class OpenAICompatibleProvider(
     private static HttpRequestMessage CreateRequest(
         ProviderSettings settings, string apiKey, ChatCompletionRequest payload)
     {
-        if (!Uri.TryCreate(settings.BaseUrl, UriKind.Absolute, out _))
+        if (!ProviderSettings.IsValidBaseUrl(settings.BaseUrl))
             throw new ProviderException("Base URL 格式无效。");
         if (string.IsNullOrWhiteSpace(settings.Model))
             throw new ProviderException("请填写模型名称。");

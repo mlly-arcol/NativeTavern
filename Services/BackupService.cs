@@ -8,6 +8,7 @@ namespace NativeTavern.Services;
 public sealed class BackupService
 {
     private static readonly string[] ManagedDirectories = ["Avatars", "Attachments", "Documents"];
+    private static readonly JsonSerializerOptions ManifestJsonOptions = new() { WriteIndented = true };
     private readonly string root;
     private readonly string databaseFile;
 
@@ -24,13 +25,18 @@ public sealed class BackupService
         if (IsInsideRoot(destination)) throw new InvalidOperationException("备份文件不能保存在 UserData 文件夹内。");
 
         var temporary = CreateTemporaryDirectory();
+        string? temporaryArchive = null;
         try
         {
             var backupRoot = Path.Combine(temporary, "UserData");
             Directory.CreateDirectory(Path.Combine(backupRoot, "Data"));
             await SnapshotDatabaseAsync(Path.Combine(backupRoot, "Data", "NativeTavern.db"));
             foreach (var name in ManagedDirectories)
-                CopyDirectory(Path.Combine(root, name), Path.Combine(backupRoot, name));
+            {
+                var managedBackupDirectory = Path.Combine(backupRoot, name);
+                Directory.CreateDirectory(managedBackupDirectory);
+                CopyDirectory(Path.Combine(root, name), managedBackupDirectory);
+            }
 
             await File.WriteAllTextAsync(
                 Path.Combine(temporary, "backup.json"),
@@ -40,14 +46,17 @@ public sealed class BackupService
                     version = 1,
                     applicationVersion = App.DisplayVersion,
                     createdAt = DateTimeOffset.UtcNow
-                }, new JsonSerializerOptions { WriteIndented = true }));
+                }, ManifestJsonOptions));
 
             Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
-            if (File.Exists(destination)) File.Delete(destination);
-            ZipFile.CreateFromDirectory(temporary, destination, CompressionLevel.Optimal, false);
+            temporaryArchive = destination + "." + Guid.NewGuid().ToString("N") + ".tmp";
+            ZipFile.CreateFromDirectory(temporary, temporaryArchive, CompressionLevel.Optimal, false);
+            File.Move(temporaryArchive, destination, true);
+            temporaryArchive = null;
         }
         finally
         {
+            if (temporaryArchive is not null && File.Exists(temporaryArchive)) File.Delete(temporaryArchive);
             if (Directory.Exists(temporary)) Directory.Delete(temporary, true);
         }
     }
@@ -59,9 +68,13 @@ public sealed class BackupService
         var temporary = CreateTemporaryDirectory();
         try
         {
+            ValidateArchive(source, temporary);
             ZipFile.ExtractToDirectory(source, temporary);
             var restoredRoot = Path.Combine(temporary, "UserData");
             var restoredDatabase = Path.Combine(restoredRoot, "Data", "NativeTavern.db");
+            foreach (var name in ManagedDirectories)
+                if (!Directory.Exists(Path.Combine(restoredRoot, name)))
+                    throw new InvalidDataException($"备份中缺少 {name} 文件夹。");
             await ValidateDatabaseAsync(restoredDatabase);
 
             var safetyBackup = Path.Combine(
@@ -73,7 +86,7 @@ public sealed class BackupService
             Directory.CreateDirectory(Path.GetDirectoryName(databaseFile)!);
             File.Copy(restoredDatabase, databaseFile, true);
             foreach (var name in ManagedDirectories)
-                CopyDirectory(Path.Combine(restoredRoot, name), Path.Combine(root, name), overwrite: true);
+                ReplaceDirectory(Path.Combine(restoredRoot, name), Path.Combine(root, name));
             return safetyBackup;
         }
         finally
@@ -128,6 +141,30 @@ public sealed class BackupService
         return path;
     }
 
+    private static void ValidateArchive(string archivePath, string extractionDirectory)
+    {
+        const long maxExpandedBytes = 16L * 1024 * 1024 * 1024;
+        const int maxEntries = 100_000;
+        using var archive = ZipFile.OpenRead(archivePath);
+        if (archive.Entries.Count > maxEntries)
+            throw new InvalidDataException("备份包含过多文件。");
+        if (archive.GetEntry("backup.json") is null)
+            throw new InvalidDataException("不是有效的 NativeTavern 备份。");
+
+        var root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(extractionDirectory)) +
+                   Path.DirectorySeparatorChar;
+        long expandedBytes = 0;
+        foreach (var entry in archive.Entries)
+        {
+            if (entry.Length > maxExpandedBytes - expandedBytes)
+                throw new InvalidDataException("备份解压后的大小超过 16 GB 限制。");
+            expandedBytes += entry.Length;
+            var target = Path.GetFullPath(Path.Combine(extractionDirectory, entry.FullName));
+            if (!target.StartsWith(root, StringComparison.OrdinalIgnoreCase))
+                throw new InvalidDataException("备份包含不安全的文件路径。");
+        }
+    }
+
     private static void CopyDirectory(string source, string destination, bool overwrite = false)
     {
         if (!Directory.Exists(source)) return;
@@ -140,5 +177,13 @@ public sealed class BackupService
             Directory.CreateDirectory(Path.GetDirectoryName(target)!);
             File.Copy(file, target, overwrite);
         }
+    }
+
+    private static void ReplaceDirectory(string source, string destination)
+    {
+        if (!Directory.Exists(source))
+            throw new InvalidDataException($"备份中缺少 {Path.GetFileName(destination)} 文件夹。");
+        if (Directory.Exists(destination)) Directory.Delete(destination, true);
+        CopyDirectory(source, destination);
     }
 }

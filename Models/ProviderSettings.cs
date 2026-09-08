@@ -19,5 +19,9 @@ public sealed class ProviderSettings
     public bool IncludeKnowledgeContext { get; set; }
     public bool IncludeImageContext { get; set; }
     [System.Text.Json.Serialization.JsonIgnore]
-    public bool IsConfigured => Uri.TryCreate(BaseUrl, UriKind.Absolute, out _) && !string.IsNullOrWhiteSpace(Model);
+    public bool IsConfigured => IsValidBaseUrl(BaseUrl) && !string.IsNullOrWhiteSpace(Model);
+
+    public static bool IsValidBaseUrl(string? value) =>
+        Uri.TryCreate(value, UriKind.Absolute, out var uri) &&
+        (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
 }

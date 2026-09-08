@@ -36,36 +36,46 @@ public sealed class CharacterService(
             throw new InvalidOperationException("角色名称不能为空。");
         character.GroupName = character.GroupName.Trim();
         await repository.EnsureGroupAsync(character.GroupName);
+        var previousAvatar = character.AvatarPath;
+        string? copiedAvatar = null;
         if (!string.IsNullOrWhiteSpace(avatarSourcePath) && File.Exists(avatarSourcePath) &&
-            !IsManagedAvatar(avatarSourcePath))
+            !ManagedFile.IsInsideDirectory(avatarSourcePath, AppPaths.AvatarsDirectory))
         {
-            var previousAvatar = character.AvatarPath;
-            character.AvatarPath = CopyAvatar(avatarSourcePath);
-            if (!string.IsNullOrWhiteSpace(previousAvatar) &&
-                IsManagedAvatar(previousAvatar) && File.Exists(previousAvatar))
-            {
-                File.Delete(previousAvatar);
-            }
+            copiedAvatar = CopyAvatar(avatarSourcePath);
+            character.AvatarPath = copiedAvatar;
         }
         character.UpdatedAt = DateTimeOffset.UtcNow;
-        if (character.Id == 0)
+        try
         {
-            character.CreatedAt = character.UpdatedAt;
-            await repository.CreateAsync(character);
+            if (character.Id == 0)
+            {
+                character.CreatedAt = character.UpdatedAt;
+                await repository.CreateAsync(character);
+            }
+            else
+            {
+                await repository.UpdateAsync(character);
+            }
         }
-        else
+        catch
         {
-            await repository.UpdateAsync(character);
+            character.AvatarPath = previousAvatar;
+            if (copiedAvatar is not null)
+                ManagedFile.TryDelete(copiedAvatar, AppPaths.AvatarsDirectory, logger);
+            throw;
         }
+
+        if (copiedAvatar is not null && !string.Equals(previousAvatar, copiedAvatar, StringComparison.OrdinalIgnoreCase))
+            ManagedFile.TryDelete(previousAvatar, AppPaths.AvatarsDirectory, logger);
         return character;
     }
 
     public async Task<Character> ImportAsync(string path, CancellationToken cancellationToken = default)
     {
         var character = await importer.ImportAsync(path, cancellationToken);
-        if (Path.GetExtension(path).Equals(".png", StringComparison.OrdinalIgnoreCase))
-            character.AvatarPath = CopyAvatar(path);
-        await SaveAsync(character);
+        await SaveAsync(
+            character,
+            Path.GetExtension(path).Equals(".png", StringComparison.OrdinalIgnoreCase) ? path : null);
         logger.LogInformation("Imported character card {CharacterName}.", character.Name);
         return character;
     }
@@ -73,11 +83,7 @@ public sealed class CharacterService(
     public async Task DeleteAsync(Character character)
     {
         await repository.DeleteAsync(character.Id);
-        if (!string.IsNullOrWhiteSpace(character.AvatarPath) &&
-            IsManagedAvatar(character.AvatarPath) && File.Exists(character.AvatarPath))
-        {
-            File.Delete(character.AvatarPath);
-        }
+        ManagedFile.TryDelete(character.AvatarPath, AppPaths.AvatarsDirectory, logger);
         logger.LogInformation("Deleted character {CharacterId}.", character.Id);
     }
 
@@ -89,16 +95,6 @@ public sealed class CharacterService(
         var destination = Path.Combine(AppPaths.AvatarsDirectory, $"{Guid.NewGuid():N}{extension}");
         File.Copy(source, destination, false);
         return destination;
-    }
-
-    private static bool IsManagedAvatar(string path)
-    {
-        var relative = Path.GetRelativePath(
-            Path.GetFullPath(AppPaths.AvatarsDirectory),
-            Path.GetFullPath(path));
-        return !Path.IsPathRooted(relative) &&
-               relative != ".." &&
-               !relative.StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal);
     }
 
     private static string ValidateGroupName(string name)

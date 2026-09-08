@@ -220,7 +220,8 @@ public partial class SettingsViewModel(
         StatusMessage = L($"正在加载 {SelectedLocalModel.Name}…", $"Loading {SelectedLocalModel.Name}…");
         try
         {
-            await localModelService.StartAsync(LlamaCppPath.Trim(), SelectedLocalModel, CancellationToken.None);
+            await localModelService.StartAsync(
+                LlamaCppPath.Trim(), SelectedLocalModel, ContextLength, CancellationToken.None);
             var profile = ProviderProfiles.First(x => x.Id == "llamacpp");
             _initializing = true;
             SelectedProvider = profile;
@@ -273,7 +274,7 @@ public partial class SettingsViewModel(
     private bool TryBuildSettings(out ProviderSettings settings, bool requireModel = true)
     {
         settings = BuildCurrentSettings();
-        if (!Uri.TryCreate(settings.BaseUrl, UriKind.Absolute, out _))
+        if (!ProviderSettings.IsValidBaseUrl(settings.BaseUrl))
         {
             StatusMessage = L("请输入有效的 Base URL。", "Enter a valid Base URL.");
             return false;

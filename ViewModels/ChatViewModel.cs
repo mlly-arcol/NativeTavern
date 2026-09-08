@@ -43,6 +43,7 @@ public partial class ChatViewModel(
     private ChatSession? _session;
     private CancellationTokenSource? _generationCancellation;
     private bool _suppressSessionSelection;
+    private long _sessionLoadRequestId;
 
     public event Action? ConfigureRequested;
     public event Action? PromptInspectorRequested;
@@ -212,11 +213,15 @@ public partial class ChatViewModel(
         {
             try
             {
-                if (assistantViewModel is not null)
+                if (assistantViewModel is not null && !string.IsNullOrEmpty(assistantViewModel.Content))
                 {
                     var count = await chatService.GetSwipeCountAsync(assistantViewModel.Model);
                     assistantViewModel.SetSwipeState(
                         assistantViewModel.Model.CurrentSwipeIndex, count, assistantViewModel.Content);
+                }
+                else if (assistantViewModel is not null)
+                {
+                    Messages.Remove(assistantViewModel);
                 }
             }
             finally { EndGeneration(cancellation); }
@@ -268,7 +273,12 @@ public partial class ChatViewModel(
             logger.LogError(ex, "Group chat next speaker generation failed.");
             ErrorMessage = "群聊生成失败，请查看日志后重试。";
         }
-        finally { EndGeneration(cancellation); }
+        finally
+        {
+            if (assistantViewModel is not null && string.IsNullOrEmpty(assistantViewModel.Content))
+                Messages.Remove(assistantViewModel);
+            EndGeneration(cancellation);
+        }
     }
 
     [RelayCommand(CanExecute = nameof(CanCreateChat))]
@@ -435,16 +445,38 @@ public partial class ChatViewModel(
 
     private async Task LoadSessionAsync(ChatSession session)
     {
+        var requestId = Interlocked.Increment(ref _sessionLoadRequestId);
+        var members = session.IsGroupChat
+            ? await chatService.GetGroupMembersAsync(session.Id)
+            : [];
+        var character = session.CharacterId is long characterId
+            ? await chatService.GetCharacterAsync(characterId) : null;
+        var assistantName = character?.Name ?? "NativeTavern";
+        var assistantAvatarPath = character?.AvatarPath ?? string.Empty;
+        var messageViewModels = new List<ChatMessageViewModel>();
+        foreach (var message in await chatService.GetMessagesAsync(session.Id))
+        {
+            var countTask = chatService.GetSwipeCountAsync(message);
+            var attachmentsTask = chatService.GetAttachmentsAsync(message.Id);
+            await Task.WhenAll(countTask, attachmentsTask);
+            var speaker = members.FirstOrDefault(x => x.Id == message.SpeakerCharacterId);
+            messageViewModels.Add(new ChatMessageViewModel(
+                message,
+                await countTask,
+                await attachmentsTask,
+                speaker?.Name ?? assistantName,
+                speaker?.AvatarPath ?? assistantAvatarPath));
+        }
+
+        var estimatedTokens = await GetTokenEstimateAsync(session);
+        if (requestId != Volatile.Read(ref _sessionLoadRequestId)) return;
+
         _session = session;
         IsGroupChat = session.IsGroupChat;
         GroupMembers.Clear();
-        if (session.IsGroupChat)
-            foreach (var member in await chatService.GetGroupMembersAsync(session.Id)) GroupMembers.Add(member);
-        NextSpeakerCommand.NotifyCanExecuteChanged();
-        var character = session.CharacterId is long characterId
-            ? await chatService.GetCharacterAsync(characterId) : null;
-        CurrentAssistantName = character?.Name ?? "NativeTavern";
-        CurrentAssistantAvatarPath = character?.AvatarPath ?? string.Empty;
+        foreach (var member in members) GroupMembers.Add(member);
+        CurrentAssistantName = assistantName;
+        CurrentAssistantAvatarPath = assistantAvatarPath;
         SessionTitle = session.Title;
         SetSelectedSession(session.Id);
         SelectedPersona = Personas.FirstOrDefault(x => x.Id == session.PersonaId);
@@ -452,17 +484,9 @@ public partial class ChatViewModel(
         SelectedPreset = Presets.FirstOrDefault(x => x.Id == session.PromptPresetId);
         AuthorNote = session.AuthorNote;
         Messages.Clear();
-        foreach (var message in await chatService.GetMessagesAsync(session.Id))
-        {
-            var speaker = GroupMembers.FirstOrDefault(x => x.Id == message.SpeakerCharacterId);
-            Messages.Add(new ChatMessageViewModel(
-                message,
-                await chatService.GetSwipeCountAsync(message),
-                await chatService.GetAttachmentsAsync(message.Id),
-                speaker?.Name ?? CurrentAssistantName,
-                speaker?.AvatarPath ?? CurrentAssistantAvatarPath));
-        }
-        await RefreshTokenEstimateAsync();
+        foreach (var message in messageViewModels) Messages.Add(message);
+        EstimatedPromptTokens = estimatedTokens;
+        NextSpeakerCommand.NotifyCanExecuteChanged();
     }
 
     private async Task RefreshSessionsAsync(long selectedId)
@@ -525,8 +549,13 @@ public partial class ChatViewModel(
 
     private async Task RefreshTokenEstimateAsync()
     {
-        try { EstimatedPromptTokens = (await GetPromptPreviewAsync())?.EstimatedTokens ?? 0; }
-        catch { EstimatedPromptTokens = 0; }
+        EstimatedPromptTokens = _session is null ? 0 : await GetTokenEstimateAsync(_session);
+    }
+
+    private async Task<int> GetTokenEstimateAsync(ChatSession session)
+    {
+        try { return (await chatService.GetPromptPreviewAsync(session)).EstimatedTokens; }
+        catch { return 0; }
     }
 
     partial void OnInputTextChanged(string value) => SendCommand.NotifyCanExecuteChanged();

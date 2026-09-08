@@ -17,6 +17,7 @@ public partial class ChatView : UserControl
     private ScrollViewer? _messageScrollViewer;
     private readonly DispatcherTimer _smoothScrollTimer;
     private readonly DispatcherTimer _autoScrollTimer;
+    private readonly HashSet<ChatMessageViewModel> _subscribedMessages = [];
     private double _smoothScrollTarget;
 
     public ChatView()
@@ -32,13 +33,18 @@ public partial class ChatView : UserControl
             Interval = TimeSpan.FromMilliseconds(40)
         };
         _autoScrollTimer.Tick += AutoScrollTimerOnTick;
-        DataContextChanged += (_, _) => AttachViewModel();
+        DataContextChanged += (_, _) =>
+        {
+            DetachViewModel();
+            if (IsLoaded) AttachViewModel();
+        };
         Loaded += ChatView_OnLoaded;
         Unloaded += ChatView_OnUnloaded;
     }
 
     private void ChatView_OnLoaded(object sender, RoutedEventArgs e)
     {
+        AttachViewModel();
         _messageScrollViewer = FindVisualChild<ScrollViewer>(MessageList);
         if (_messageScrollViewer is null) return;
 
@@ -52,25 +58,56 @@ public partial class ChatView : UserControl
         _smoothScrollTimer.Stop();
         _autoScrollTimer.Stop();
         MessageList.PreviewMouseWheel -= MessageList_OnPreviewMouseWheel;
+        DetachViewModel();
     }
 
     private void AttachViewModel()
     {
-        if (_viewModel is not null) _viewModel.Messages.CollectionChanged -= MessagesOnCollectionChanged;
+        DetachViewModel();
         _viewModel = DataContext as ChatViewModel;
         if (_viewModel is null) return;
         _viewModel.Messages.CollectionChanged += MessagesOnCollectionChanged;
-        foreach (var message in _viewModel.Messages) message.PropertyChanged += MessageOnPropertyChanged;
+        foreach (var message in _viewModel.Messages) SubscribeMessage(message);
+    }
+
+    private void DetachViewModel()
+    {
+        if (_viewModel is not null)
+            _viewModel.Messages.CollectionChanged -= MessagesOnCollectionChanged;
+        foreach (var message in _subscribedMessages)
+            message.PropertyChanged -= MessageOnPropertyChanged;
+        _subscribedMessages.Clear();
+        _viewModel = null;
+    }
+
+    private void SubscribeMessage(ChatMessageViewModel message)
+    {
+        if (_subscribedMessages.Add(message))
+            message.PropertyChanged += MessageOnPropertyChanged;
+    }
+
+    private void UnsubscribeMessage(ChatMessageViewModel message)
+    {
+        if (_subscribedMessages.Remove(message))
+            message.PropertyChanged -= MessageOnPropertyChanged;
     }
 
     private void MessagesOnCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
+        if (e.Action == NotifyCollectionChangedAction.Reset)
+        {
+            foreach (var message in _subscribedMessages)
+                message.PropertyChanged -= MessageOnPropertyChanged;
+            _subscribedMessages.Clear();
+            if (_viewModel is not null)
+                foreach (var message in _viewModel.Messages) SubscribeMessage(message);
+        }
         if (e.NewItems is not null)
             foreach (ChatMessageViewModel message in e.NewItems)
-                message.PropertyChanged += MessageOnPropertyChanged;
+                SubscribeMessage(message);
         if (e.OldItems is not null)
             foreach (ChatMessageViewModel message in e.OldItems)
-                message.PropertyChanged -= MessageOnPropertyChanged;
+                UnsubscribeMessage(message);
         ScrollToLatest();
     }
 

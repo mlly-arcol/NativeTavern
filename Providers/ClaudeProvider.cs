@@ -26,6 +26,7 @@ public sealed class ClaudeProvider(
     public async Task<IReadOnlyList<ModelInfo>> GetModelsAsync(
         ProviderSettings settings, string apiKey, CancellationToken cancellationToken)
     {
+        ValidateBaseUrl(settings.BaseUrl);
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeout.CancelAfter(TimeSpan.FromSeconds(15));
         using var request = new HttpRequestMessage(HttpMethod.Get, settings.BaseUrl.TrimEnd('/') + "/models?limit=1000");
@@ -46,6 +47,7 @@ public sealed class ClaudeProvider(
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         var resolved = await settingsService.LoadResolvedAsync();
+        ValidateBaseUrl(resolved.Settings.BaseUrl);
         var system = string.Join("\n\n", request.Messages.Where(x => x.Role == "system").Select(x => x.Content));
         var messages = NormalizeMessages(request.Messages.Where(x => x.Role != "system"));
         var payload = new
@@ -124,7 +126,7 @@ public sealed class ClaudeProvider(
         var content = new List<object> { new { type = "text", text = message.Content } };
         foreach (var url in message.ImageDataUrls)
         {
-            var separator = url.IndexOf(",", StringComparison.Ordinal);
+            var separator = url.IndexOf(',');
             var header = separator < 0 ? string.Empty : url[..separator];
             var data = separator < 0 ? string.Empty : url[(separator + 1)..];
             var mime = header.StartsWith("data:", StringComparison.OrdinalIgnoreCase)
@@ -138,6 +140,12 @@ public sealed class ClaudeProvider(
     {
         request.Headers.TryAddWithoutValidation("x-api-key", apiKey);
         request.Headers.TryAddWithoutValidation("anthropic-version", "2023-06-01");
+    }
+
+    private static void ValidateBaseUrl(string baseUrl)
+    {
+        if (!ProviderSettings.IsValidBaseUrl(baseUrl))
+            throw new ProviderException("Base URL 格式无效，仅支持 HTTP 或 HTTPS。");
     }
 
     public static IReadOnlyList<ModelInfo> ParseModels(string jsonText)

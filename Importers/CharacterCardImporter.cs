@@ -7,10 +7,14 @@ namespace NativeTavern.Importers;
 
 public sealed class CharacterCardImporter
 {
+    private const long MaxCardFileSize = 50 * 1024 * 1024;
     private static readonly byte[] PngSignature = [137, 80, 78, 71, 13, 10, 26, 10];
 
     public async Task<Character> ImportAsync(string path, CancellationToken cancellationToken = default)
     {
+        if (!File.Exists(path)) throw new FileNotFoundException("找不到角色卡。", path);
+        if (new FileInfo(path).Length > MaxCardFileSize)
+            throw new InvalidDataException("角色卡文件不能超过 50 MB。");
         var extension = Path.GetExtension(path).ToLowerInvariant();
         var json = extension switch
         {

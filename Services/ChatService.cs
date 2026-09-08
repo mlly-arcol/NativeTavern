@@ -108,8 +108,19 @@ public sealed class ChatService(
     public async Task<int> GetSwipeCountAsync(ChatMessage message) =>
         message.Role == ChatRole.Assistant ? (await EnsureSwipeHistoryAsync(message)).Count : 0;
 
-    public Task DeleteSessionAsync(long id) => sessionRepository.DeleteAsync(id);
-    public Task DeleteMessageAsync(long id) => messageRepository.DeleteAsync(id);
+    public async Task DeleteSessionAsync(long id)
+    {
+        var attachments = await attachmentRepository.GetBySessionAsync(id);
+        await sessionRepository.DeleteAsync(id);
+        attachmentService.DeleteManagedFiles(attachments);
+    }
+
+    public async Task DeleteMessageAsync(long id)
+    {
+        var attachments = await attachmentRepository.GetByMessageAsync(id);
+        await messageRepository.DeleteAsync(id);
+        attachmentService.DeleteManagedFiles(attachments);
+    }
 
     public async Task UpdateSessionPromptAsync(
         ChatSession session, long? personaId, long? lorebookId, long? presetId, string authorNote)
@@ -195,9 +206,13 @@ public sealed class ChatService(
         finally
         {
             assistant.UpdatedAt = DateTimeOffset.UtcNow;
-            await messageRepository.UpdateAsync(assistant);
-            if (!string.IsNullOrEmpty(assistant.Content))
+            if (string.IsNullOrEmpty(assistant.Content))
             {
+                await messageRepository.DeleteAsync(assistant.Id);
+            }
+            else
+            {
+                await messageRepository.UpdateAsync(assistant);
                 await swipeRepository.AddAsync(new MessageSwipe
                 {
                     ChatMessageId = assistant.Id, SwipeIndex = 0,
@@ -259,8 +274,13 @@ public sealed class ChatService(
         finally
         {
             assistant.UpdatedAt = DateTimeOffset.UtcNow;
-            await messageRepository.UpdateAsync(assistant);
-            if (!string.IsNullOrEmpty(assistant.Content))
+            if (string.IsNullOrEmpty(assistant.Content))
+            {
+                await messageRepository.DeleteAsync(assistant.Id);
+            }
+            else
+            {
+                await messageRepository.UpdateAsync(assistant);
                 await swipeRepository.AddAsync(new MessageSwipe
                 {
                     ChatMessageId = assistant.Id,
@@ -268,6 +288,7 @@ public sealed class ChatService(
                     Content = assistant.Content,
                     CreatedAt = assistant.UpdatedAt.Value
                 });
+            }
             session.UpdatedAt = assistant.UpdatedAt.Value;
             await sessionRepository.UpdateAsync(session);
         }
