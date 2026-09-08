@@ -2,7 +2,7 @@
 
 NativeTavern 是一款面向个人使用的 Windows 原生 AI 角色聊天客户端。它使用 WPF 构建，不依赖浏览器或 Node.js，支持在线 API、本地模型、角色卡、世界书、Persona、提示词预设、知识库和多角色群聊。
 
-当前版本：**1.2.1**
+当前版本：**1.2.2**
 
 [下载最新版本](https://github.com/mlly-arcol/NativeTavern/releases/latest)
 
@@ -281,11 +281,18 @@ Views → ViewModels → Services → Repositories / Providers
 ## 当前限制
 
 - 仅支持 Windows x64，没有 Web、Linux、macOS 或移动版本。
-- 聊天消息当前使用普通文本显示，不包含完整 Markdown、代码高亮、LaTeX 或 HTML 渲染器。
+- 聊天消息支持常用 Markdown（标题、粗体、斜体、列表、引用、链接、行内代码与代码块）；暂不包含代码语法高亮、LaTeX、HTML 和远程图片渲染。
 - 当前没有聊天分支、角色卡导出、云同步、多账户或插件系统。
 - 知识库是关键词检索，不是向量 RAG。
 - Release 是便携式单文件程序，没有安装器和在线自动更新器。
 - 本地发布时自动替换根目录 EXE 是开发构建步骤，不是客户端在线更新功能。
+
+## V1.2.2 更新内容
+
+- 聊天消息支持常用 Markdown 排版
+- 代码块和行内代码使用等宽字体显示
+- Markdown 渲染针对模型流式输出做了防抖处理
+- 外部链接仅允许通过 HTTP/HTTPS 打开
 
 ## V1.2.1 更新内容
 

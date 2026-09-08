@@ -7,7 +7,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
     <ApplicationIcon>Assets\NativeTavern.ico</ApplicationIcon>
-    <Version>1.2.1</Version>
+    <Version>1.2.2</Version>
     <AssemblyName>NativeTavern</AssemblyName>
     <RootNamespace>NativeTavern</RootNamespace>
     <PublishSingleFile>true</PublishSingleFile>
@@ -21,6 +21,7 @@
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.11" />
     <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.11" />
     <PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.11" />
+    <PackageReference Include="Markdig" Version="1.3.2" />
     <PackageReference Include="UglyToad.PdfPig" Version="1.7.0-custom-5" />
   </ItemGroup>
 
