@@ -9,16 +9,22 @@ CREATE TABLE IF NOT EXISTS Characters (
     ExampleMessages TEXT NOT NULL,
     Creator TEXT NOT NULL,
     Tags TEXT NOT NULL,
+    GroupName TEXT NOT NULL DEFAULT '',
     IsFavorite INTEGER NOT NULL DEFAULT 0,
     AvatarPath TEXT NOT NULL,
     CreatedAt TEXT NOT NULL,
     UpdatedAt TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS IX_Characters_Name ON Characters(Name);
+CREATE TABLE IF NOT EXISTS CharacterGroups (
+    Name TEXT PRIMARY KEY COLLATE NOCASE,
+    CreatedAt TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS ChatSessions (
     Id INTEGER PRIMARY KEY AUTOINCREMENT,
     Title TEXT NOT NULL,
     CharacterId INTEGER NULL,
+    IsGroupChat INTEGER NOT NULL DEFAULT 0,
     PersonaId INTEGER NULL,
     LorebookId INTEGER NULL,
     PromptPresetId INTEGER NULL,
@@ -27,10 +33,19 @@ CREATE TABLE IF NOT EXISTS ChatSessions (
     CreatedAt TEXT NOT NULL,
     UpdatedAt TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS ChatSessionCharacters (
+    ChatSessionId INTEGER NOT NULL,
+    CharacterId INTEGER NOT NULL,
+    SortOrder INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY(ChatSessionId, CharacterId),
+    FOREIGN KEY (ChatSessionId) REFERENCES ChatSessions(Id) ON DELETE CASCADE,
+    FOREIGN KEY (CharacterId) REFERENCES Characters(Id) ON DELETE CASCADE
+);
 CREATE TABLE IF NOT EXISTS ChatMessages (
     Id INTEGER PRIMARY KEY AUTOINCREMENT,
     ChatSessionId INTEGER NOT NULL,
     Role TEXT NOT NULL,
+    SpeakerCharacterId INTEGER NULL,
     Content TEXT NOT NULL,
     CreatedAt TEXT NOT NULL,
     UpdatedAt TEXT NULL,

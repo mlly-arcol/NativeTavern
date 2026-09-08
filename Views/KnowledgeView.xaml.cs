@@ -16,7 +16,9 @@ public partial class KnowledgeView : UserControl
     }
     private async void Delete_OnClick(object sender, RoutedEventArgs e)
     {
-        if (ViewModel is not null && MessageBox.Show("删除选中的知识库文档及索引？", "Knowledge Base", MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes)
+        if (ViewModel?.SelectedDocument is not { } document) return;
+        if (ConfirmDeleteDialog.Show(this, "删除知识库文档？", $"确定删除“{document.Name}”吗？",
+                "文档及其生成的索引都会被永久移除。此操作无法撤销。", "删除文档"))
             await ViewModel.DeleteSelectedAsync();
     }
     private async void Toggle_OnClick(object sender, RoutedEventArgs e) { if (ViewModel is not null) await ViewModel.ToggleSelectedAsync(); }

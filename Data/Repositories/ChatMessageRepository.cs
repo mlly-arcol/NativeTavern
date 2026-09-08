@@ -9,8 +9,8 @@ public sealed class ChatMessageRepository(DatabaseConnectionFactory connectionFa
     {
         await using var connection = connectionFactory.CreateConnection();
         message.Id = await connection.ExecuteScalarAsync<long>(
-            "INSERT INTO ChatMessages(ChatSessionId,Role,Content,CreatedAt,UpdatedAt,CurrentSwipeIndex) " +
-            "VALUES(@ChatSessionId,@Role,@Content,@CreatedAt,@UpdatedAt,@CurrentSwipeIndex); SELECT last_insert_rowid();",
+            "INSERT INTO ChatMessages(ChatSessionId,Role,SpeakerCharacterId,Content,CreatedAt,UpdatedAt,CurrentSwipeIndex) " +
+            "VALUES(@ChatSessionId,@Role,@SpeakerCharacterId,@Content,@CreatedAt,@UpdatedAt,@CurrentSwipeIndex); SELECT last_insert_rowid();",
             ToParameters(message));
         return message.Id;
     }
@@ -19,7 +19,7 @@ public sealed class ChatMessageRepository(DatabaseConnectionFactory connectionFa
     {
         await using var connection = connectionFactory.CreateConnection();
         await connection.ExecuteAsync(
-            "UPDATE ChatMessages SET Content=@Content,UpdatedAt=@UpdatedAt,CurrentSwipeIndex=@CurrentSwipeIndex WHERE Id=@Id",
+            "UPDATE ChatMessages SET SpeakerCharacterId=@SpeakerCharacterId,Content=@Content,UpdatedAt=@UpdatedAt,CurrentSwipeIndex=@CurrentSwipeIndex WHERE Id=@Id",
             ToParameters(message));
     }
 
@@ -47,7 +47,7 @@ public sealed class ChatMessageRepository(DatabaseConnectionFactory connectionFa
 
     private static object ToParameters(ChatMessage value) => new
     {
-        value.Id, value.ChatSessionId, Role = value.Role.ToString(), value.Content,
+        value.Id, value.ChatSessionId, value.SpeakerCharacterId, Role = value.Role.ToString(), value.Content,
         CreatedAt = value.CreatedAt.ToString("O"),
         UpdatedAt = value.UpdatedAt?.ToString("O"), value.CurrentSwipeIndex
     };
@@ -57,6 +57,7 @@ public sealed class ChatMessageRepository(DatabaseConnectionFactory connectionFa
         public long Id { get; init; }
         public long ChatSessionId { get; init; }
         public string Role { get; init; } = string.Empty;
+        public long? SpeakerCharacterId { get; init; }
         public string Content { get; init; } = string.Empty;
         public string CreatedAt { get; init; } = string.Empty;
         public string? UpdatedAt { get; init; }
@@ -64,7 +65,7 @@ public sealed class ChatMessageRepository(DatabaseConnectionFactory connectionFa
         public ChatMessage ToModel() => new()
         {
             Id = Id, ChatSessionId = ChatSessionId,
-            Role = Enum.Parse<ChatRole>(Role, true), Content = Content,
+            Role = Enum.Parse<ChatRole>(Role, true), SpeakerCharacterId = SpeakerCharacterId, Content = Content,
             CreatedAt = DateTimeOffset.Parse(CreatedAt),
             UpdatedAt = string.IsNullOrEmpty(UpdatedAt) ? null : DateTimeOffset.Parse(UpdatedAt),
             CurrentSwipeIndex = CurrentSwipeIndex

@@ -2,7 +2,7 @@
 
 一个面向个人使用的 Windows 原生 AI 角色聊天客户端。
 
-## 当前版本：V1.1
+## 当前版本：V1.2
 
 当前仓库已实现日常角色聊天所需的本地桌面闭环：
 
@@ -16,6 +16,9 @@
 - 从 NativeTavern/LocalModels 发现 GGUF 文件，并通过 llama.cpp server 在应用内启动、切换和连接
 - 本地文件日志与常见 HTTP 错误提示
 - 角色创建、编辑、删除、搜索、标签与收藏
+- 角色分组创建、重命名、删除、成员多选与折叠展示
+- 基于角色分组创建群聊，并为每条回复显示对应角色的名称和头像
+- 群聊自动选择合适的发言角色，支持手动触发“下一位”以及独立调整会话成员
 - PNG Character Card V2/V3 与 JSON Character Card 导入
 - 本地角色头像管理
 - 角色 First Message
@@ -28,6 +31,7 @@
 - Lorebook 与关键词、次级关键词、Priority、Depth 激活
 - Prompt Preset 与模型、Temperature、Top P、Max Tokens 覆盖
 - 每个聊天独立的 Author Note
+- Persona、Lorebook、Prompt Preset 与 Author Note 集中到“对话设置”弹窗
 - Prompt Studio 统一资源管理页面
 - OpenAI、OpenRouter、DeepSeek 与自定义 OpenAI-compatible API
 - Claude 原生 Messages API 与 SSE 流式回复
@@ -41,16 +45,19 @@
 - 自动上下文摘要，长聊天保留近期消息与本地摘要
 - Windows 系统托盘、回复完成通知、全局快捷键
 - 窗口和聊天输入区的文件拖放
+- 遵循 Windows 动画偏好的主窗口淡入、缩放与位移动画
 
-聊天页中选择并点击 Apply Prompt 后，Persona、激活的 Lorebook 条目、Preset Prompt 和 Author Note 会随聊天内容发送到用户配置的模型 Provider；Clear 可解除当前会话的全部 Prompt 资源绑定。知识库片段与图片附件默认只保留在本机，必须在 Settings 中分别启用发送开关才会随模型请求外发。
+聊天页顶部点击“对话设置”后，可以为当前会话选择 Persona、Lorebook、Prompt Preset 和 Author Note；点击“应用”保存，点击“清除”解除全部 Prompt 资源绑定。知识库片段与图片附件默认只保留在本机，必须在 Settings 中分别启用发送开关才会随模型请求外发。
+
+角色页支持将角色归入分组。包含至少两个角色的分组可以直接创建群聊；群聊会保存独立的成员快照，因此之后修改原角色分组不会影响已有群聊。发送消息时系统会结合角色名称、标签及最近发言情况选择发言者，也可以点击“下一位”继续生成一条角色回复。
 
 开发构建：dotnet build -c Release
 
-Windows x64 发布：dotnet publish -c Release -r win-x64 --self-contained false -o publish
+Windows x64 发布：dotnet publish -c Release -r win-x64 --self-contained true -o publish
 
 运行后数据写入 %LOCALAPPDATA%\NativeTavern\。首次使用请在 Settings 中填写 Base URL、API Key 与模型名称，并先执行连接测试。
 
-仓库根目录的 NativeTavern.exe 是可直接启动的单文件版本，需要目标电脑安装 .NET 10 Desktop Runtime。
+GitHub Releases 提供可直接启动的 Windows x64 自包含单文件版本，不要求目标电脑另行安装 .NET 10 Desktop Runtime。本地每次执行发布命令后，项目会自动将最新文件同步为根目录的 NativeTavern.exe；该大型构建产物不会写入 Git 历史。
 
 ## 一、项目定位
 
@@ -372,7 +379,6 @@ User Message
 
 包括：
 
-- 群聊
 - 聊天分支
 - Prompt Inspector
 - Token Counter
@@ -930,6 +936,22 @@ V1.0 不要求拥有 SillyTavern 的所有功能。
 - 默认连接 127.0.0.1:8080 的 OpenAI-compatible API
 - 默认加载 NativeTavern/LocalModels/Qwen3-8B-Q4_K_M.gguf
 - 使用 NVIDIA CUDA 后端并保留 GPU 层卸载设置
+
+状态：已完成。
+
+### V1.2
+
+目标：改进多角色会话与桌面启动体验。
+
+实现：
+
+- 角色分组、成员管理与折叠显示
+- 从角色分组创建群聊
+- 群聊成员快照、自动选择发言角色及“下一位”回复
+- 群聊标题和成员独立编辑
+- 对话 Prompt 上下文设置弹窗
+- 主窗口淡入、轻微缩放和位移动画
+- 发布后自动更新仓库根目录启动文件
 
 状态：已完成。
 

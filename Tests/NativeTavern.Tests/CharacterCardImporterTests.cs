@@ -80,6 +80,24 @@ public sealed class CharacterCardImporterTests
     }
 
     [Fact]
+    public void GroupChatHistoryIncludesAssistantSpeakerName()
+    {
+        var messages = new[]
+        {
+            new ChatMessage
+            {
+                Role = ChatRole.Assistant,
+                SpeakerCharacterId = 7,
+                Content = "Welcome"
+            }
+        };
+
+        var result = ChatService.BuildMessages(messages, new Dictionary<long, string> { [7] = "Alice" });
+
+        Assert.Equal("[Alice]\nWelcome", Assert.Single(result).Content);
+    }
+
+    [Fact]
     public void MessageViewModelTracksEditAndSwipeState()
     {
         var model = new ChatMessage

@@ -1,10 +1,12 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using NativeTavern.Services;
 
 namespace NativeTavern.ViewModels;
 
 public partial class MainViewModel : ObservableObject
 {
+    private readonly LocalizationService _localizationService;
     public ChatViewModel Chat { get; }
     public SettingsViewModel Settings { get; }
     public CharactersViewModel Characters { get; }
@@ -15,7 +17,7 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     private object _currentViewModel;
 
-    public MainViewModel(ChatViewModel chat, SettingsViewModel settings, CharactersViewModel characters, PromptStudioViewModel promptStudio, KnowledgeViewModel knowledge, PromptInspectorViewModel promptInspector)
+    public MainViewModel(ChatViewModel chat, SettingsViewModel settings, CharactersViewModel characters, PromptStudioViewModel promptStudio, KnowledgeViewModel knowledge, PromptInspectorViewModel promptInspector, LocalizationService localizationService)
     {
         Chat = chat;
         Settings = settings;
@@ -23,13 +25,17 @@ public partial class MainViewModel : ObservableObject
         PromptStudio = promptStudio;
         Knowledge = knowledge;
         PromptInspector = promptInspector;
+        _localizationService = localizationService;
         _currentViewModel = chat;
         chat.ConfigureRequested += ShowSettings;
         settings.Saved += SettingsSaved;
         characters.ChatRequested += StartCharacterChat;
+        characters.GroupChatRequested += StartGroupChat;
         promptStudio.Saved += PromptResourcesSaved;
         chat.PromptInspectorRequested += () => _ = ShowPromptInspectorAsync();
     }
+
+    partial void OnCurrentViewModelChanged(object value) => _localizationService.Refresh();
 
     public async Task InitializeAsync()
     {
@@ -76,6 +82,12 @@ public partial class MainViewModel : ObservableObject
     private async void StartCharacterChat(Models.Character character)
     {
         await Chat.StartCharacterChatAsync(character);
+        CurrentViewModel = Chat;
+    }
+
+    private async void StartGroupChat(string groupName)
+    {
+        await Chat.StartGroupChatAsync(groupName);
         CurrentViewModel = Chat;
     }
 

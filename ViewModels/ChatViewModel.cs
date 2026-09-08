@@ -23,6 +23,7 @@ public partial class ChatViewModel(
     public ObservableCollection<Lorebook> Lorebooks { get; } = [];
     public ObservableCollection<PromptPreset> Presets { get; } = [];
     public ObservableCollection<string> PendingImagePaths { get; } = [];
+    public ObservableCollection<Character> GroupMembers { get; } = [];
 
     [ObservableProperty] private string _inputText = string.Empty;
     [ObservableProperty] private bool _isGenerating;
@@ -37,6 +38,7 @@ public partial class ChatViewModel(
     [ObservableProperty] private int _estimatedPromptTokens;
     [ObservableProperty] private string _currentAssistantName = "NativeTavern";
     [ObservableProperty] private string _currentAssistantAvatarPath = string.Empty;
+    [ObservableProperty] private bool _isGroupChat;
 
     private ChatSession? _session;
     private CancellationTokenSource? _generationCancellation;
@@ -97,6 +99,19 @@ public partial class ChatViewModel(
         await ApplyPromptContextAsync();
     }
 
+    public async Task UpdatePromptContextAsync(
+        Persona? persona,
+        Lorebook? lorebook,
+        PromptPreset? preset,
+        string authorNote)
+    {
+        SelectedPersona = persona;
+        SelectedLorebook = lorebook;
+        SelectedPreset = preset;
+        AuthorNote = authorNote;
+        await ApplyPromptContextAsync();
+    }
+
     public async Task StartCharacterChatAsync(Character character)
     {
         if (IsGenerating) return;
@@ -104,6 +119,42 @@ public partial class ChatViewModel(
         await RefreshSessionsAsync(session.Id);
         await LoadSessionAsync(session);
         ErrorMessage = null;
+    }
+
+    public async Task StartGroupChatAsync(string groupName)
+    {
+        if (IsGenerating) return;
+        try
+        {
+            var session = await chatService.CreateGroupSessionAsync(groupName);
+            await RefreshSessionsAsync(session.Id);
+            await LoadSessionAsync(session);
+            ErrorMessage = null;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Creating group chat failed.");
+            ErrorMessage = ex.Message;
+        }
+    }
+
+    public Task<IReadOnlyList<Character>> GetAllCharactersAsync() => chatService.GetAllCharactersAsync();
+
+    public async Task UpdateGroupChatAsync(string title, IReadOnlyCollection<long> characterIds)
+    {
+        if (_session is null || !_session.IsGroupChat || IsGenerating) return;
+        try
+        {
+            await chatService.UpdateGroupSessionAsync(_session, title, characterIds);
+            await RefreshSessionsAsync(_session.Id);
+            await LoadSessionAsync(_session);
+            ErrorMessage = null;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Updating group chat failed.");
+            ErrorMessage = ex.Message;
+        }
     }
 
     [RelayCommand(CanExecute = nameof(CanSend))]
@@ -127,10 +178,11 @@ public partial class ChatViewModel(
                     await Application.Current.Dispatcher.InvokeAsync(() =>
                     {
                         Messages.Add(new ChatMessageViewModel(user, attachments: attachments));
+                        var speaker = GroupMembers.FirstOrDefault(x => x.Id == assistant.SpeakerCharacterId);
                         assistantViewModel = new ChatMessageViewModel(
                             assistant,
-                            assistantName: CurrentAssistantName,
-                            assistantAvatarPath: CurrentAssistantAvatarPath);
+                            assistantName: speaker?.Name ?? CurrentAssistantName,
+                            assistantAvatarPath: speaker?.AvatarPath ?? CurrentAssistantAvatarPath);
                         Messages.Add(assistantViewModel);
                         SessionTitle = _session.Title;
                     });
@@ -173,6 +225,48 @@ public partial class ChatViewModel(
 
     [RelayCommand(CanExecute = nameof(CanStop))]
     private void Stop() => _generationCancellation?.Cancel();
+
+    [RelayCommand(CanExecute = nameof(CanGenerateNextSpeaker))]
+    private async Task NextSpeakerAsync()
+    {
+        if (_session is null || !CanGenerateNextSpeaker()) return;
+        ErrorMessage = null;
+        using var cancellation = BeginGeneration();
+        ChatMessageViewModel? assistantViewModel = null;
+        try
+        {
+            await chatService.GenerateNextSpeakerAsync(
+                _session,
+                async assistant =>
+                {
+                    var speaker = GroupMembers.FirstOrDefault(x => x.Id == assistant.SpeakerCharacterId);
+                    await Application.Current.Dispatcher.InvokeAsync(() =>
+                    {
+                        assistantViewModel = new ChatMessageViewModel(
+                            assistant,
+                            assistantName: speaker?.Name,
+                            assistantAvatarPath: speaker?.AvatarPath);
+                        Messages.Add(assistantViewModel);
+                    });
+                },
+                async (_, chunk) => await Application.Current.Dispatcher.InvokeAsync(() =>
+                {
+                    if (assistantViewModel is not null) assistantViewModel.Content += chunk;
+                }),
+                cancellation.Token);
+            if (assistantViewModel is not null && !string.IsNullOrEmpty(assistantViewModel.Content))
+                assistantViewModel.SetSwipeState(0, 1, assistantViewModel.Content);
+            await RefreshSessionsAsync(_session.Id);
+            await RefreshTokenEstimateAsync();
+        }
+        catch (ProviderException ex) { ErrorMessage = ex.Message; }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Group chat next speaker generation failed.");
+            ErrorMessage = "群聊生成失败，请查看日志后重试。";
+        }
+        finally { EndGeneration(cancellation); }
+    }
 
     [RelayCommand(CanExecute = nameof(CanCreateChat))]
     private async Task NewChatAsync()
@@ -339,6 +433,11 @@ public partial class ChatViewModel(
     private async Task LoadSessionAsync(ChatSession session)
     {
         _session = session;
+        IsGroupChat = session.IsGroupChat;
+        GroupMembers.Clear();
+        if (session.IsGroupChat)
+            foreach (var member in await chatService.GetGroupMembersAsync(session.Id)) GroupMembers.Add(member);
+        NextSpeakerCommand.NotifyCanExecuteChanged();
         var character = session.CharacterId is long characterId
             ? await chatService.GetCharacterAsync(characterId) : null;
         CurrentAssistantName = character?.Name ?? "NativeTavern";
@@ -351,12 +450,15 @@ public partial class ChatViewModel(
         AuthorNote = session.AuthorNote;
         Messages.Clear();
         foreach (var message in await chatService.GetMessagesAsync(session.Id))
+        {
+            var speaker = GroupMembers.FirstOrDefault(x => x.Id == message.SpeakerCharacterId);
             Messages.Add(new ChatMessageViewModel(
                 message,
                 await chatService.GetSwipeCountAsync(message),
                 await chatService.GetAttachmentsAsync(message.Id),
-                CurrentAssistantName,
-                CurrentAssistantAvatarPath));
+                speaker?.Name ?? CurrentAssistantName,
+                speaker?.AvatarPath ?? CurrentAssistantAvatarPath));
+        }
         await RefreshTokenEstimateAsync();
     }
 
@@ -394,6 +496,8 @@ public partial class ChatViewModel(
                               (!string.IsNullOrWhiteSpace(InputText) || PendingImagePaths.Count > 0);
     private bool CanStop() => IsGenerating;
     private bool CanCreateChat() => !IsGenerating;
+    private bool CanGenerateNextSpeaker() => !IsGenerating && IsGroupChat &&
+                                             HasProviderConfiguration && GroupMembers.Count >= 2;
 
     partial void OnSelectedSessionChanged(ChatSession? value)
     {
@@ -428,6 +532,12 @@ public partial class ChatViewModel(
         SendCommand.NotifyCanExecuteChanged();
         StopCommand.NotifyCanExecuteChanged();
         NewChatCommand.NotifyCanExecuteChanged();
+        NextSpeakerCommand.NotifyCanExecuteChanged();
     }
-    partial void OnHasProviderConfigurationChanged(bool value) => SendCommand.NotifyCanExecuteChanged();
+    partial void OnHasProviderConfigurationChanged(bool value)
+    {
+        SendCommand.NotifyCanExecuteChanged();
+        NextSpeakerCommand.NotifyCanExecuteChanged();
+    }
+    partial void OnIsGroupChatChanged(bool value) => NextSpeakerCommand.NotifyCanExecuteChanged();
 }

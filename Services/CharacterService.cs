@@ -9,15 +9,33 @@ namespace NativeTavern.Services;
 public sealed class CharacterService(
     CharacterRepository repository,
     CharacterCardImporter importer,
-    ILogger<CharacterService> logger)
+    ILogger<CharacterService> logger) : ICharacterService
 {
     public Task<IReadOnlyList<Character>> SearchAsync(string? query, bool favoritesOnly) =>
         repository.SearchAsync(query, favoritesOnly);
+
+    public Task<IReadOnlyList<CharacterGroup>> GetGroupsAsync() => repository.GetGroupsAsync();
+
+    public Task CreateGroupAsync(string name, IReadOnlyCollection<long> characterIds)
+    {
+        name = ValidateGroupName(name);
+        return repository.CreateGroupAsync(name, characterIds);
+    }
+
+    public Task UpdateGroupAsync(string originalName, string name, IReadOnlyCollection<long> characterIds)
+    {
+        name = ValidateGroupName(name);
+        return repository.UpdateGroupAsync(originalName, name, characterIds);
+    }
+
+    public Task DeleteGroupAsync(string name) => repository.DeleteGroupAsync(name);
 
     public async Task<Character> SaveAsync(Character character, string? avatarSourcePath = null)
     {
         if (string.IsNullOrWhiteSpace(character.Name))
             throw new InvalidOperationException("角色名称不能为空。");
+        character.GroupName = character.GroupName.Trim();
+        await repository.EnsureGroupAsync(character.GroupName);
         if (!string.IsNullOrWhiteSpace(avatarSourcePath) && File.Exists(avatarSourcePath) &&
             !IsManagedAvatar(avatarSourcePath))
         {
@@ -81,5 +99,13 @@ public sealed class CharacterService(
         return !Path.IsPathRooted(relative) &&
                relative != ".." &&
                !relative.StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal);
+    }
+
+    private static string ValidateGroupName(string name)
+    {
+        name = name.Trim();
+        if (name.Length == 0) throw new InvalidOperationException("分组名称不能为空。");
+        if (name.Length > 80) throw new InvalidOperationException("分组名称不能超过 80 个字符。");
+        return name;
     }
 }

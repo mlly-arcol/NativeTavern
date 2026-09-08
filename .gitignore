@@ -1,6 +1,8 @@
 bin/
 obj/
 publish/
+/NativeTavern.exe
+UserData/
 .vs/
 *.user
 *.suo

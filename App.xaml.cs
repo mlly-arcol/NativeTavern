@@ -18,6 +18,9 @@ namespace NativeTavern;
 /// </summary>
 public partial class App : Application
 {
+    public static string DisplayVersion =>
+        $"v{typeof(App).Assembly.GetName().Version?.ToString(3) ?? "0.0.0"}";
+
     private ServiceProvider? _services;
 
     protected override async void OnStartup(StartupEventArgs e)
@@ -36,7 +39,7 @@ public partial class App : Application
         };
         try
         {
-            logger.LogInformation("NativeTavern 1.1.0 starting.");
+            logger.LogInformation("NativeTavern {Version} starting.", DisplayVersion);
             await _services.GetRequiredService<DatabaseInitializer>().InitializeAsync();
             var storedSettings = await _services.GetRequiredService<SettingsService>().LoadAsync();
             _services.GetRequiredService<LocalizationService>().SetLanguage(storedSettings.LanguageCode);
@@ -80,7 +83,7 @@ public partial class App : Application
         services.AddSingleton<SettingsService>();
         services.AddSingleton<LocalizationService>();
         services.AddSingleton<Importers.CharacterCardImporter>();
-        services.AddSingleton<CharacterService>();
+        services.AddSingleton<ICharacterService, CharacterService>();
         services.AddSingleton<PromptService>();
         services.AddSingleton<KnowledgeService>();
         services.AddSingleton<AttachmentService>();

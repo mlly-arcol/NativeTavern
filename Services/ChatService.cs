@@ -27,6 +27,45 @@ public sealed class ChatService(
 
     public Task<IReadOnlyList<ChatSession>> GetSessionsAsync() => sessionRepository.GetAllAsync();
 
+    public async Task<IReadOnlyList<Character>> GetGroupMembersAsync(long sessionId) =>
+        await characterRepository.GetByIdsAsync(await sessionRepository.GetCharacterIdsAsync(sessionId));
+
+    public Task<IReadOnlyList<Character>> GetAllCharactersAsync() =>
+        characterRepository.SearchAsync(string.Empty, false);
+
+    public async Task<ChatSession> CreateGroupSessionAsync(string groupName)
+    {
+        var members = await characterRepository.GetByGroupAsync(groupName);
+        if (members.Count < 2) throw new InvalidOperationException("群聊至少需要两个角色。");
+        var now = DateTimeOffset.UtcNow;
+        var session = new ChatSession
+        {
+            Title = groupName.Trim(),
+            IsGroupChat = true,
+            CreatedAt = now,
+            UpdatedAt = now
+        };
+        await sessionRepository.CreateAsync(session);
+        await sessionRepository.SetCharactersAsync(session.Id, members.Select(x => x.Id).ToList());
+        return session;
+    }
+
+    public async Task UpdateGroupSessionAsync(
+        ChatSession session,
+        string title,
+        IReadOnlyCollection<long> characterIds)
+    {
+        var ids = characterIds.Distinct().ToList();
+        if (ids.Count < 2) throw new InvalidOperationException("群聊至少需要两个角色。");
+        if (string.IsNullOrWhiteSpace(title)) throw new InvalidOperationException("群聊名称不能为空。");
+        session.Title = title.Trim();
+        session.IsGroupChat = true;
+        session.CharacterId = null;
+        session.UpdatedAt = DateTimeOffset.UtcNow;
+        await sessionRepository.SetCharactersAsync(session.Id, ids);
+        await sessionRepository.UpdateAsync(session);
+    }
+
     public async Task<ChatSession> CreateSessionAsync(Character? character = null)
     {
         var now = DateTimeOffset.UtcNow;
@@ -123,22 +162,24 @@ public sealed class ChatService(
         await messageRepository.AddAsync(user);
         if (imagePaths.Count > 0) await attachmentService.SaveImagesAsync(user.Id, imagePaths);
         var history = await messageRepository.GetBySessionAsync(session.Id);
+        var speaker = await SelectSpeakerAsync(session, history);
         var assistant = new ChatMessage
         {
             ChatSessionId = session.Id, Role = ChatRole.Assistant,
+            SpeakerCharacterId = speaker?.Id,
             Content = string.Empty, CreatedAt = DateTimeOffset.UtcNow
         };
         await messageRepository.AddAsync(assistant);
         await onStarted(user, assistant);
 
-        if (history.Count == 1)
+        if (history.Count == 1 && !session.IsGroupChat)
         {
             session.Title = user.Content.Length > 32 ? user.Content[..32] + "…" : user.Content;
             session.UpdatedAt = now;
             await sessionRepository.UpdateAsync(session);
         }
 
-        var request = await CreateRequestAsync(session, history, settings);
+        var request = await CreateRequestAsync(session, history, settings, assistant.SpeakerCharacterId);
         try
         {
             await foreach (var chunk in provider.StreamAsync(request, cancellationToken))
@@ -171,6 +212,58 @@ public sealed class ChatService(
         return assistant;
     }
 
+    public async Task<ChatMessage> GenerateNextSpeakerAsync(
+        ChatSession session,
+        Func<ChatMessage, Task> onStarted,
+        Func<ChatMessage, string, Task> onChunk,
+        CancellationToken cancellationToken)
+    {
+        if (!session.IsGroupChat) throw new InvalidOperationException("当前会话不是群聊。");
+        var settings = await LoadConfiguredSettingsAsync();
+        var history = await messageRepository.GetBySessionAsync(session.Id);
+        var speaker = await SelectSpeakerAsync(session, history)
+                      ?? throw new InvalidOperationException("群聊没有可用角色。");
+        var assistant = new ChatMessage
+        {
+            ChatSessionId = session.Id,
+            Role = ChatRole.Assistant,
+            SpeakerCharacterId = speaker.Id,
+            Content = string.Empty,
+            CreatedAt = DateTimeOffset.UtcNow
+        };
+        await messageRepository.AddAsync(assistant);
+        await onStarted(assistant);
+        var request = await CreateRequestAsync(session, history, settings, speaker.Id);
+        try
+        {
+            await foreach (var chunk in provider.StreamAsync(request, cancellationToken))
+            {
+                assistant.Content += chunk;
+                await onChunk(assistant, chunk);
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            logger.LogInformation("Group chat generation cancelled by user.");
+        }
+        finally
+        {
+            assistant.UpdatedAt = DateTimeOffset.UtcNow;
+            await messageRepository.UpdateAsync(assistant);
+            if (!string.IsNullOrEmpty(assistant.Content))
+                await swipeRepository.AddAsync(new MessageSwipe
+                {
+                    ChatMessageId = assistant.Id,
+                    SwipeIndex = 0,
+                    Content = assistant.Content,
+                    CreatedAt = assistant.UpdatedAt.Value
+                });
+            session.UpdatedAt = assistant.UpdatedAt.Value;
+            await sessionRepository.UpdateAsync(session);
+        }
+        return assistant;
+    }
+
     public async Task<(ChatMessage Message, int SwipeCount)> GenerateAlternativeAsync(
         ChatSession session, ChatMessage target,
         Func<string, Task> onContentChanged,
@@ -187,7 +280,8 @@ public sealed class ChatService(
         var swipes = await EnsureSwipeHistoryAsync(target);
         var originalContent = target.Content;
         var newContent = string.Empty;
-        var request = await CreateRequestAsync(session, allMessages.Take(targetPosition), settings);
+        var request = await CreateRequestAsync(
+            session, allMessages.Take(targetPosition), settings, target.SpeakerCharacterId);
         await onContentChanged(string.Empty);
         try
         {
@@ -227,10 +321,18 @@ public sealed class ChatService(
         return (target, swipes.Count + (string.IsNullOrEmpty(newContent) ? 0 : 1));
     }
 
-    public static IReadOnlyList<ChatCompletionMessage> BuildMessages(IEnumerable<ChatMessage> messages) =>
+    public static IReadOnlyList<ChatCompletionMessage> BuildMessages(
+        IEnumerable<ChatMessage> messages,
+        IReadOnlyDictionary<long, string>? speakerNames = null) =>
         messages.Select(message => new ChatCompletionMessage
         {
-            Role = message.Role.ToString().ToLowerInvariant(), Content = message.Content, SourceMessageId = message.Id
+            Role = message.Role.ToString().ToLowerInvariant(),
+            Content = message.Role == ChatRole.Assistant &&
+                      message.SpeakerCharacterId is long speakerId &&
+                      speakerNames?.TryGetValue(speakerId, out var speakerName) == true
+                ? $"[{speakerName}]\n{message.Content}"
+                : message.Content,
+            SourceMessageId = message.Id
         }).ToList();
 
     private async Task<ProviderSettings> LoadConfiguredSettingsAsync()
@@ -242,7 +344,10 @@ public sealed class ChatService(
     }
 
     private async Task<ChatCompletionRequest> CreateRequestAsync(
-        ChatSession session, IEnumerable<ChatMessage> history, ProviderSettings settings)
+        ChatSession session,
+        IEnumerable<ChatMessage> history,
+        ProviderSettings settings,
+        long? speakingCharacterId = null)
     {
         var historyList = history.ToList();
         Character? characterContext = null;
@@ -255,7 +360,8 @@ public sealed class ChatService(
             greeting.Content == RenderCharacterText(characterContext.FirstMessage, characterContext.Name))
             requestHistory = historyList.Skip(1);
 
-        var prompt = await promptService.BuildAsync(session, requestHistory, settings);
+        var prompt = await promptService.BuildAsync(
+            session, requestHistory, settings, speakingCharacterId);
         var messages = new List<ChatCompletionMessage>();
         foreach (var message in prompt.Messages)
         {
@@ -274,6 +380,37 @@ public sealed class ChatService(
             Temperature = prompt.Temperature, TopP = prompt.TopP,
             MaxTokens = prompt.MaxTokens, Stream = true
         };
+    }
+
+    private async Task<Character?> SelectSpeakerAsync(
+        ChatSession session,
+        IReadOnlyList<ChatMessage> history)
+    {
+        if (!session.IsGroupChat)
+            return session.CharacterId is long characterId
+                ? await characterRepository.GetAsync(characterId)
+                : null;
+
+        var members = (await GetGroupMembersAsync(session.Id)).ToList();
+        if (members.Count == 0) return null;
+        var latestUserText = history.LastOrDefault(x => x.Role == ChatRole.User)?.Content ?? string.Empty;
+        var lastSpeakerId = history.LastOrDefault(x => x.Role == ChatRole.Assistant)?.SpeakerCharacterId;
+        var weighted = members.Select(member =>
+        {
+            var score = 1.0;
+            if (latestUserText.Contains(member.Name, StringComparison.OrdinalIgnoreCase)) score += 12;
+            var keywords = member.Tags.Split([',', '，', ';'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            score += keywords.Count(x => x.Length >= 2 && latestUserText.Contains(x, StringComparison.OrdinalIgnoreCase)) * 2;
+            if (lastSpeakerId == member.Id && members.Count > 1) score *= 0.25;
+            return (Member: member, Score: score);
+        }).ToList();
+        var pick = Random.Shared.NextDouble() * weighted.Sum(x => x.Score);
+        foreach (var candidate in weighted)
+        {
+            pick -= candidate.Score;
+            if (pick <= 0) return candidate.Member;
+        }
+        return weighted[^1].Member;
     }
 
     private async Task<IReadOnlyList<MessageSwipe>> EnsureSwipeHistoryAsync(ChatMessage message)

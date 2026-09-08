@@ -6,12 +6,14 @@ namespace NativeTavern.Services;
 public sealed class PromptService(
     PromptRepository repository,
     CharacterRepository characterRepository,
+    ChatSessionRepository sessionRepository,
     KnowledgeService knowledgeService)
 {
     public async Task<PromptBuildResult> BuildAsync(
         ChatSession session,
         IEnumerable<ChatMessage> history,
-        ProviderSettings settings)
+        ProviderSettings settings,
+        long? speakingCharacterId = null)
     {
         var historyList = history.ToList();
         var sections = new List<string>();
@@ -21,9 +23,29 @@ public sealed class PromptService(
         AddSection(sections, "System Prompt", preset?.SystemPrompt);
         AddSection(sections, "Main Prompt", preset?.MainPrompt);
 
-        if (settings.IncludeCharacterContext && session.CharacterId is long characterId &&
-            await characterRepository.GetAsync(characterId) is { } character)
+        IReadOnlyList<Character> groupMembers = [];
+        if (session.IsGroupChat)
+        {
+            groupMembers = await characterRepository.GetByIdsAsync(
+                await sessionRepository.GetCharacterIdsAsync(session.Id));
+            var speaker = groupMembers.FirstOrDefault(x => x.Id == speakingCharacterId);
+            AddSection(
+                sections,
+                "Group Chat Rules",
+                "Participants: " + string.Join(", ", groupMembers.Select(x => x.Name)) + ".\n" +
+                (speaker is null
+                    ? "This is a multi-character conversation. Keep every message attributed to its speaker."
+                    : $"Reply only as {speaker.Name}. Do not write dialogue or actions for other participants. " +
+                      "Stay in character and respond naturally to the latest conversation."));
+            if (settings.IncludeCharacterContext)
+                foreach (var member in groupMembers)
+                    AddSection(sections, "Character Profile: " + member.Name, BuildGroupCharacterContext(member));
+        }
+        else if (settings.IncludeCharacterContext && session.CharacterId is long characterId &&
+                 await characterRepository.GetAsync(characterId) is { } character)
+        {
             AddSection(sections, "Character", BuildCharacterContext(character));
+        }
 
         if (session.PersonaId is long personaId &&
             (await repository.GetPersonasAsync()).FirstOrDefault(x => x.Id == personaId) is { } persona)
@@ -53,7 +75,8 @@ public sealed class PromptService(
         if (!string.IsNullOrWhiteSpace(session.Summary)) AddSection(sections, "Conversation Summary", session.Summary);
 
         var conversation = string.IsNullOrWhiteSpace(session.Summary) ? historyList : historyList.TakeLast(12).ToList();
-        var messages = ChatService.BuildMessages(conversation).ToList();
+        var speakerNames = groupMembers.ToDictionary(x => x.Id, x => x.Name);
+        var messages = ChatService.BuildMessages(conversation, speakerNames).ToList();
         if (sections.Count > 0)
             messages.Insert(0, new ChatCompletionMessage { Role = "system", Content = string.Join("\n\n", sections) });
         if (!string.IsNullOrWhiteSpace(session.AuthorNote))
@@ -114,6 +137,20 @@ public sealed class PromptService(
             string.IsNullOrWhiteSpace(character.ExampleMessages) ? null : "Example dialogue:\n" + character.ExampleMessages
         };
         return RenderCharacterText(string.Join("\n\n", sections.Where(x => x is not null)), character.Name);
+    }
+
+    private static string BuildGroupCharacterContext(Character character)
+    {
+        var sections = new[]
+        {
+            "Name: " + character.Name,
+            string.IsNullOrWhiteSpace(character.Description) ? null : "Description:\n" + character.Description,
+            string.IsNullOrWhiteSpace(character.Personality) ? null : "Personality:\n" + character.Personality,
+            string.IsNullOrWhiteSpace(character.Scenario) ? null : "Scenario:\n" + character.Scenario,
+            string.IsNullOrWhiteSpace(character.ExampleMessages) ? null : "Example dialogue:\n" + character.ExampleMessages
+        };
+        return RenderCharacterText(
+            string.Join("\n\n", sections.Where(x => x is not null)), character.Name);
     }
 
     private static string RenderCharacterText(string text, string characterName) =>

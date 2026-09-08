@@ -10,6 +10,7 @@
         <conv:StringToVisibilityConverter x:Key="StringToVisibility" />
         <conv:DisplayMemberConverter x:Key="DisplayMemberConverter" />
         <conv:ReferenceEqualsConverter x:Key="ReferenceEqualsConverter" />
+        <conv:InitialsConverter x:Key="InitialsConverter" />
 
         <!-- Clean light desktop palette -->
         <SolidColorBrush x:Key="WindowBrush" Color="#FFFFFF" />

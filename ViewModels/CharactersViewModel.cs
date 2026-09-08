@@ -7,11 +7,16 @@ using NativeTavern.Services;
 
 namespace NativeTavern.ViewModels;
 
-public partial class CharactersViewModel(
-    CharacterService characterService,
-    ILogger<CharactersViewModel> logger) : ObservableObject
+public partial class CharactersViewModel : ObservableObject
 {
+    private long _refreshRequestId;
+    private readonly ICharacterService characterService;
+    private readonly ILogger<CharactersViewModel> logger;
+
     public ObservableCollection<Character> Characters { get; } = [];
+    public ObservableCollection<CharacterGroupNode> CharacterGroups { get; } = [];
+    public ObservableCollection<Character> UngroupedCharacters { get; } = [];
+    public IEnumerable<string> GroupNames => CharacterGroups.Select(x => x.Name);
 
     [ObservableProperty] private Character? _selectedCharacter;
     [ObservableProperty] private string _searchText = string.Empty;
@@ -24,16 +29,55 @@ public partial class CharactersViewModel(
     [ObservableProperty] private string _exampleMessages = string.Empty;
     [ObservableProperty] private string _creator = string.Empty;
     [ObservableProperty] private string _tags = string.Empty;
+    [ObservableProperty] private string _groupName = string.Empty;
     [ObservableProperty] private string _avatarPath = string.Empty;
     [ObservableProperty] private bool _isFavorite;
     [ObservableProperty] private bool _isBusy;
     [ObservableProperty] private string? _statusMessage;
 
     public event Action<Character>? ChatRequested;
+    public event Action<string>? GroupChatRequested;
+
+    public CharactersViewModel(
+        ICharacterService characterService,
+        ILogger<CharactersViewModel> logger)
+    {
+        this.characterService = characterService;
+        this.logger = logger;
+    }
 
     public Task InitializeAsync() => RefreshAsync();
 
     public Task RefreshAsync() => RefreshAsync(SelectedCharacter?.Id);
+
+    public Task<IReadOnlyList<Character>> GetAllCharactersAsync() =>
+        characterService.SearchAsync(string.Empty, false);
+
+    public async Task CreateGroupAsync(string name, IReadOnlyCollection<long> characterIds)
+    {
+        await RunGroupActionAsync(
+            () => characterService.CreateGroupAsync(name, characterIds),
+            $"已创建分组：{name.Trim()}",
+            name.Trim());
+    }
+
+    public async Task UpdateGroupAsync(
+        string originalName,
+        string name,
+        IReadOnlyCollection<long> characterIds)
+    {
+        await RunGroupActionAsync(
+            () => characterService.UpdateGroupAsync(originalName, name, characterIds),
+            $"已更新分组：{name.Trim()}",
+            name.Trim());
+    }
+
+    public async Task DeleteGroupAsync(string name)
+    {
+        await RunGroupActionAsync(
+            () => characterService.DeleteGroupAsync(name),
+            $"已删除分组：{name}");
+    }
 
     public async Task ImportFileAsync(string path)
     {
@@ -80,7 +124,7 @@ public partial class CharactersViewModel(
     private void NewCharacter()
     {
         SelectedCharacter = null;
-        Name = Description = Personality = Scenario = FirstMessage = ExampleMessages = Creator = Tags = AvatarPath = string.Empty;
+        Name = Description = Personality = Scenario = FirstMessage = ExampleMessages = Creator = Tags = GroupName = AvatarPath = string.Empty;
         IsFavorite = false;
         StatusMessage = "正在创建新角色。";
     }
@@ -108,6 +152,7 @@ public partial class CharactersViewModel(
                 ExampleMessages = ExampleMessages,
                 Creator = Creator,
                 Tags = Tags,
+                GroupName = GroupName.Trim(),
                 IsFavorite = IsFavorite,
                 AvatarPath = SelectedCharacter?.AvatarPath ?? string.Empty
             };
@@ -136,6 +181,12 @@ public partial class CharactersViewModel(
         await RefreshAsync(character.Id);
     }
 
+    [RelayCommand]
+    private static void ToggleGroup(CharacterGroupNode? group)
+    {
+        if (group is not null) group.IsExpanded = !group.IsExpanded;
+    }
+
     [RelayCommand(CanExecute = nameof(CanStartChat))]
     private void StartChat()
     {
@@ -144,13 +195,65 @@ public partial class CharactersViewModel(
 
     private bool CanStartChat() => SelectedCharacter is not null;
 
+    [RelayCommand]
+    private void StartGroupChat(CharacterGroupNode? group)
+    {
+        if (group is null) return;
+        if (group.CharacterCount < 2)
+        {
+            StatusMessage = "群聊至少需要两个角色。";
+            return;
+        }
+        GroupChatRequested?.Invoke(group.Name);
+    }
+
     private async Task RefreshAsync(long? selectId = null)
     {
+        var requestId = Interlocked.Increment(ref _refreshRequestId);
         var selectedId = selectId ?? SelectedCharacter?.Id;
-        var results = await characterService.SearchAsync(SearchText, FavoritesOnly);
-        Characters.Clear();
-        foreach (var character in results) Characters.Add(character);
-        SelectedCharacter = selectedId is null ? null : Characters.FirstOrDefault(x => x.Id == selectedId);
+        var query = SearchText;
+        var favoritesOnly = FavoritesOnly;
+
+        try
+        {
+            var characterTask = characterService.SearchAsync(query, favoritesOnly);
+            var groupTask = characterService.GetGroupsAsync();
+            await Task.WhenAll(characterTask, groupTask);
+            var results = await characterTask;
+            var groups = await groupTask;
+            if (requestId != Volatile.Read(ref _refreshRequestId))
+            {
+                logger.LogDebug(
+                    "Discarded stale character refresh {RequestId} for query {Query}.",
+                    requestId,
+                    query);
+                return;
+            }
+
+            UpdateBrowser(results, groups);
+            Characters.Clear();
+            foreach (var character in results) Characters.Add(character);
+            SelectedCharacter = Characters.FirstOrDefault(x => x.Id == selectedId)
+                                ?? Characters.FirstOrDefault();
+            logger.LogInformation(
+                "Character refresh {RequestId} loaded {CharacterCount} characters for query {Query} with FavoritesOnly={FavoritesOnly}; selected {SelectedCharacterId}.",
+                requestId,
+                Characters.Count,
+                query,
+                favoritesOnly,
+                SelectedCharacter?.Id);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(
+                ex,
+                "Character refresh {RequestId} failed for query {Query} with FavoritesOnly={FavoritesOnly}.",
+                requestId,
+                query,
+                favoritesOnly);
+            if (requestId == Volatile.Read(ref _refreshRequestId))
+                StatusMessage = "角色加载失败，请查看日志。";
+        }
     }
 
     partial void OnSelectedCharacterChanged(Character? value)
@@ -165,6 +268,7 @@ public partial class CharactersViewModel(
         ExampleMessages = value.ExampleMessages;
         Creator = value.Creator;
         Tags = value.Tags;
+        GroupName = value.GroupName;
         AvatarPath = value.AvatarPath;
         IsFavorite = value.IsFavorite;
         StatusMessage = null;
@@ -172,4 +276,63 @@ public partial class CharactersViewModel(
 
     partial void OnSearchTextChanged(string value) => _ = RefreshAsync();
     partial void OnFavoritesOnlyChanged(bool value) => _ = RefreshAsync();
+
+    private void UpdateBrowser(
+        IReadOnlyList<Character> characters,
+        IReadOnlyList<CharacterGroup> groups,
+        string? expandGroup = null)
+    {
+        var expanded = CharacterGroups.Where(x => x.IsExpanded)
+            .Select(x => x.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var showEmptyGroups = string.IsNullOrWhiteSpace(SearchText) && !FavoritesOnly;
+
+        CharacterGroups.Clear();
+        foreach (var group in groups)
+        {
+            var members = characters.Where(x =>
+                string.Equals(x.GroupName.Trim(), group.Name, StringComparison.OrdinalIgnoreCase)).ToList();
+            if (!showEmptyGroups && members.Count == 0) continue;
+
+            var node = new CharacterGroupNode(group.Name, group.CharacterCount)
+            {
+                IsExpanded = expanded.Contains(group.Name) ||
+                    string.Equals(group.Name, expandGroup, StringComparison.OrdinalIgnoreCase)
+            };
+            foreach (var member in members) node.Characters.Add(member);
+            CharacterGroups.Add(node);
+        }
+
+        UngroupedCharacters.Clear();
+        foreach (var character in characters.Where(x => string.IsNullOrWhiteSpace(x.GroupName)))
+            UngroupedCharacters.Add(character);
+        OnPropertyChanged(nameof(GroupNames));
+    }
+
+    private async Task RunGroupActionAsync(
+        Func<Task> action,
+        string successMessage,
+        string? expandGroup = null)
+    {
+        IsBusy = true;
+        try
+        {
+            await action();
+            StatusMessage = successMessage;
+            await RefreshAsync();
+            if (expandGroup is not null)
+            {
+                var group = CharacterGroups.FirstOrDefault(x =>
+                    string.Equals(x.Name, expandGroup, StringComparison.OrdinalIgnoreCase));
+                if (group is not null) group.IsExpanded = true;
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Character group operation failed.");
+            StatusMessage = ex is InvalidOperationException
+                ? ex.Message
+                : "分组操作失败，名称可能已存在。";
+        }
+        finally { IsBusy = false; }
+    }
 }

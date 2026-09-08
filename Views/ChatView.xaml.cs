@@ -161,16 +161,41 @@ public partial class ChatView : UserControl
     private async void DeleteChat_OnClick(object sender, RoutedEventArgs e)
     {
         if (_viewModel is null) return;
-        if (MessageBox.Show("确定删除当前聊天及其全部消息吗？", "Delete Chat",
-                MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes)
+        if (ConfirmDeleteDialog.Show(this, "删除当前对话？", $"确定删除“{_viewModel.SessionTitle}”吗？",
+                "该对话及其中的全部消息都会被永久删除。此操作无法撤销。", "删除对话"))
             await _viewModel.DeleteCurrentChatAsync();
+    }
+
+    private async void EditGroupChat_OnClick(object sender, RoutedEventArgs e)
+    {
+        if (_viewModel is not { IsGroupChat: true }) return;
+        var characters = await _viewModel.GetAllCharactersAsync();
+        var dialog = CharacterGroupDialog.ShowGroupChat(
+            this,
+            _viewModel.SessionTitle,
+            characters,
+            _viewModel.GroupMembers.Select(x => x.Id).ToList());
+        if (dialog is not null)
+            await _viewModel.UpdateGroupChatAsync(dialog.GroupName, dialog.SelectedCharacterIds);
+    }
+
+    private async void PromptSettings_OnClick(object sender, RoutedEventArgs e)
+    {
+        if (_viewModel is null || _viewModel.IsGenerating) return;
+        var dialog = ChatPromptSettingsDialog.Show(this, _viewModel);
+        if (dialog is not null)
+            await _viewModel.UpdatePromptContextAsync(
+                dialog.SelectedPersona,
+                dialog.SelectedLorebook,
+                dialog.SelectedPreset,
+                dialog.AuthorNote);
     }
 
     private async void DeleteMessage_OnClick(object sender, RoutedEventArgs e)
     {
         if (_viewModel is null || sender is not Button { Tag: ChatMessageViewModel message }) return;
-        if (MessageBox.Show("确定删除这条消息吗？", "Delete Message",
-                MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes)
+        if (ConfirmDeleteDialog.Show(this, "删除这条消息？", "确定从当前对话中删除这条消息吗？",
+                "删除后消息上下文会随之更新。此操作无法撤销。", "删除消息"))
             await _viewModel.DeleteMessageAsync(message);
     }
 

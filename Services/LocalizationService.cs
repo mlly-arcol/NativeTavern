@@ -2,6 +2,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
 using System.Windows.Media;
+using System.Windows.Threading;
 
 namespace NativeTavern.Services;
 
@@ -23,6 +24,17 @@ public sealed class LocalizationService
             ["⌕   Prompt Inspector"] = "⌕   提示词检查器",
             ["⚙   Settings"] = "⚙   设置",
             ["Settings"] = "设置",
+            ["Configure model connections, generation behavior and context privacy."] = "配置模型连接、生成行为和上下文隐私。",
+            ["Interface"] = "界面",
+            ["Choose the language used throughout NativeTavern."] = "选择 NativeTavern 使用的界面语言。",
+            ["Provider connection"] = "模型连接",
+            ["Connect to an OpenAI-compatible, cloud or local model service."] = "连接 OpenAI 兼容、云端或本地模型服务。",
+            ["Generation"] = "生成参数",
+            ["Tune response creativity and request size."] = "调整回复创造性和请求长度。",
+            ["Context privacy"] = "上下文隐私",
+            ["Choose which local content may be included in model requests."] = "选择允许加入模型请求的本地内容。",
+            ["Local model runtime"] = "本地模型运行环境",
+            ["Discover running services or start a GGUF model with llama.cpp."] = "发现运行中的服务，或使用 llama.cpp 启动 GGUF 模型。",
             ["Interface Language"] = "界面语言",
             ["Provider"] = "模型服务商",
             ["Clear"] = "清除",
@@ -53,6 +65,28 @@ public sealed class LocalizationService
             ["+ New Character"] = "+ 新建角色",
             ["Search name, tags or description"] = "搜索名称、标签或描述",
             ["Favorites only"] = "仅显示收藏",
+            ["Groups"] = "分组",
+            ["Group"] = "分组",
+            ["+ Create Group"] = "+ 创建分组",
+            ["Create Group"] = "创建分组",
+            ["Edit Group"] = "编辑分组",
+            ["Save Group"] = "保存分组",
+            ["Group Chat"] = "群聊",
+            ["Members"] = "成员",
+            ["Next speaker"] = "下一位",
+            ["Start a group chat with this group"] = "使用该分组创建群聊",
+            ["Manage group chat members"] = "管理群聊成员",
+            ["Let the next character speak"] = "让下一位角色发言",
+            ["Edit Group Chat"] = "编辑群聊",
+            ["Save Group Chat"] = "保存群聊",
+            ["Group chat title"] = "群聊名称",
+            ["Select group chat members"] = "选择群聊成员",
+            ["Edit group"] = "编辑分组",
+            ["Delete group"] = "删除分组",
+            ["Group name"] = "分组名称",
+            ["Select characters for this group"] = "选择该分组包含的角色",
+            ["Use the group editor to change membership"] = "使用分组编辑器更改角色归属",
+            ["Choose an existing group or type a new name"] = "选择已有分组或输入新分组名称",
             ["Choose Avatar"] = "选择头像",
             ["Favorite"] = "收藏",
             ["Name *"] = "名称 *",
@@ -81,6 +115,8 @@ public sealed class LocalizationService
             ["Persona content"] = "人设内容",
             ["Delete persona"] = "删除人设",
             ["Save persona"] = "保存人设",
+            ["No personas yet"] = "还没有人设",
+            ["Create one to define a reusable voice."] = "新建人设以定义可复用的表达风格。",
             ["Lorebooks"] = "世界书",
             ["Lorebook"] = "世界书",
             ["Lorebook settings"] = "世界书设置",
@@ -106,6 +142,8 @@ public sealed class LocalizationService
             ["Selective"] = "选择性触发",
             ["Delete entry"] = "删除条目",
             ["Save entry"] = "保存条目",
+            ["No lorebooks yet"] = "还没有世界书",
+            ["No entries yet"] = "还没有条目",
             ["Prompt presets"] = "提示词预设",
             ["Prompt preset"] = "提示词预设",
             ["Reusable model instructions"] = "可复用的模型指令",
@@ -118,10 +156,17 @@ public sealed class LocalizationService
             ["Max tokens"] = "最大生成长度",
             ["Leave overrides blank to use the values from Settings."] = "留空则使用设置页中的参数。",
             ["Save preset"] = "保存预设",
+            ["No presets yet"] = "还没有预设",
+            ["Create one to reuse model instructions."] = "新建预设以复用模型指令。",
             ["Knowledge Base"] = "知识库",
             ["Drop or import TXT, Markdown and PDF files. Context sharing stays disabled until enabled in Settings."] = "拖放或导入 TXT、Markdown 和 PDF 文件。只有在设置中启用后才会共享上下文。",
             ["Import Documents"] = "导入文档",
             ["Enable / Disable Selected"] = "启用 / 禁用所选项",
+            ["No documents yet"] = "还没有知识库文档",
+            ["Drop TXT, Markdown or PDF files here, or choose Import Documents."] = "将 TXT、Markdown 或 PDF 文件拖到这里，或选择“导入文档”。",
+            ["Search characters"] = "搜索角色",
+            ["Previous variation"] = "上一个版本",
+            ["Next variation"] = "下一个版本",
             ["Prompt Inspector"] = "提示词检查器",
             ["Inspect the exact text context before sending it to your Provider."] = "检查发送给模型服务商之前的完整文本上下文。",
             ["Refresh"] = "刷新",
@@ -133,6 +178,9 @@ public sealed class LocalizationService
             ["Inspect prompt"] = "检查提示词",
             ["Delete conversation"] = "删除对话",
             ["Author note"] = "作者备注",
+            ["Conversation settings"] = "对话设置",
+            ["⚙ Conversation settings"] = "⚙ 对话设置",
+            ["Adjust the optional context used only by this conversation."] = "调整仅用于当前对话的可选上下文。",
             ["Apply"] = "应用",
             ["今天想聊些什么？"] = "今天想聊些什么？",
             ["选择角色或直接输入消息，开始一段新的对话"] = "选择角色或直接输入消息，开始一段新的对话",
@@ -173,6 +221,12 @@ public sealed class LocalizationService
 
     public string Text(string chinese, string english) => CurrentLanguage == English ? english : chinese;
 
+    public void Refresh()
+    {
+        if (Application.Current is null) return;
+        Application.Current.Dispatcher.BeginInvoke(ApplyToAllWindows, DispatcherPriority.Loaded);
+    }
+
     public static string Normalize(string? languageCode) =>
         string.Equals(languageCode, English, StringComparison.OrdinalIgnoreCase) ? English : Chinese;
 
@@ -188,7 +242,7 @@ public sealed class LocalizationService
 
     private void OnElementLoaded(object sender, RoutedEventArgs e)
     {
-        if (sender is not DependencyObject element || _applying) return;
+        if (sender is not DependencyObject element) return;
         element.Dispatcher.BeginInvoke(() => Apply(element));
     }
 

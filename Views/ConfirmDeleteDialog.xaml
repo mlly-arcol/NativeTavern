@@ -1,0 +1,96 @@
+<Window x:Class="NativeTavern.Views.ConfirmDeleteDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="确认删除"
+        Width="460"
+        SizeToContent="Height"
+        WindowStartupLocation="CenterOwner"
+        WindowStyle="None"
+        ResizeMode="NoResize"
+        AllowsTransparency="True"
+        Background="Transparent"
+        ShowInTaskbar="False"
+        PreviewKeyDown="Dialog_OnPreviewKeyDown"
+        Loaded="Dialog_OnLoaded">
+    <Window.Resources>
+        <Style x:Key="DialogDangerButtonStyle" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="Background" Value="#C83C32"/>
+            <Setter Property="BorderBrush" Value="#C83C32"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="MinWidth" Value="104"/>
+            <Setter Property="Padding" Value="18,10"/>
+            <Setter Property="Margin" Value="10,0,0,0"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid Margin="18">
+        <Border Background="White"
+                BorderBrush="{StaticResource BorderBrush}"
+                BorderThickness="1"
+                CornerRadius="16"
+                Padding="26,24,26,22">
+            <Border.Effect>
+                <DropShadowEffect BlurRadius="24" ShadowDepth="6" Opacity="0.20" Color="#32000000"/>
+            </Border.Effect>
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <Border Width="42" Height="4" CornerRadius="2" Background="#D94A3D" HorizontalAlignment="Left"/>
+
+                <TextBlock x:Name="DialogTitle"
+                           Grid.Row="1"
+                           Margin="0,17,0,0"
+                           FontSize="21"
+                           FontWeight="SemiBold"
+                           Foreground="{StaticResource TextBrush}"/>
+
+                <TextBlock x:Name="DialogMessage"
+                           Grid.Row="2"
+                           Margin="0,10,0,0"
+                           FontSize="14"
+                           LineHeight="22"
+                           TextWrapping="Wrap"
+                           Foreground="{StaticResource TextBrush}"/>
+
+                <Border Grid.Row="3"
+                        Margin="0,18,0,0"
+                        Padding="13,11"
+                        Background="#FFF4F2"
+                        BorderBrush="#F2D2CE"
+                        BorderThickness="1"
+                        CornerRadius="9">
+                    <TextBlock x:Name="DialogDetail"
+                               FontSize="12"
+                               LineHeight="19"
+                               TextWrapping="Wrap"
+                               Foreground="#8D3028"/>
+                </Border>
+
+                <StackPanel Grid.Row="4"
+                            Margin="0,24,0,0"
+                            Orientation="Horizontal"
+                            HorizontalAlignment="Right">
+                    <Button x:Name="CancelButton"
+                            Content="取消"
+                            MinWidth="92"
+                            Padding="18,10"
+                            Margin="0"
+                            IsCancel="True"
+                            IsDefault="True"
+                            Click="Cancel_OnClick"/>
+                    <Button x:Name="ConfirmButton"
+                            Content="确认删除"
+                            Style="{StaticResource DialogDangerButtonStyle}"
+                            Click="Confirm_OnClick"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

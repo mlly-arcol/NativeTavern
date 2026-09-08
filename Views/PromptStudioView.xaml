@@ -9,6 +9,11 @@
   <Style x:Key="DangerOutlineButtonStyle" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
    <Setter Property="Background" Value="#FFF3F2"/><Setter Property="Foreground" Value="#B42318"/><Setter Property="BorderBrush" Value="#F1C6C2"/>
   </Style>
+  <Style x:Key="SelectionRequiredDangerButtonStyle" TargetType="Button" BasedOn="{StaticResource DangerOutlineButtonStyle}">
+   <Style.Triggers>
+    <Trigger Property="Tag" Value="{x:Null}"><Setter Property="IsEnabled" Value="False"/></Trigger>
+   </Style.Triggers>
+  </Style>
  </UserControl.Resources>
 
  <Grid Background="{StaticResource WindowBrush}" Margin="30,26,30,22">
@@ -27,7 +32,14 @@
       <Grid>
        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
        <StackPanel Margin="4,2,4,12"><TextBlock Text="Personas" FontWeight="SemiBold" FontSize="15"/><TextBlock Text="Choose a voice for your conversations" Style="{StaticResource PageSubtitleStyle}" Margin="0,3,0,0" TextWrapping="Wrap"/></StackPanel>
-       <ListBox Grid.Row="1" ItemsSource="{Binding Personas}" SelectedItem="{Binding SelectedPersona}" DisplayMemberPath="Name"/>
+       <Grid Grid.Row="1">
+        <ListBox x:Name="PersonaList" ItemsSource="{Binding Personas}" SelectedItem="{Binding SelectedPersona}" DisplayMemberPath="Name"/>
+        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" IsHitTestVisible="False">
+         <StackPanel.Style><Style TargetType="StackPanel"><Style.Triggers><DataTrigger Binding="{Binding HasItems, ElementName=PersonaList}" Value="True"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers></Style></StackPanel.Style>
+         <TextBlock Text="No personas yet" FontWeight="SemiBold" HorizontalAlignment="Center"/>
+         <TextBlock Text="Create one to define a reusable voice." Style="{StaticResource PageSubtitleStyle}" TextAlignment="Center" TextWrapping="Wrap" Margin="0,5,0,0"/>
+        </StackPanel>
+       </Grid>
        <Button Grid.Row="2" Content="+  New persona" Command="{Binding NewPersonaCommand}" Margin="0,12,0,0" HorizontalContentAlignment="Center"/>
       </Grid>
      </Border>
@@ -38,7 +50,7 @@
        <StackPanel Grid.Row="1"><TextBlock Text="Name" Style="{StaticResource FormLabelStyle}"/><TextBox Text="{Binding PersonaName,UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,18"/></StackPanel>
        <Grid Grid.Row="2"><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions><TextBlock Text="Persona content" Style="{StaticResource FormLabelStyle}"/><TextBox Grid.Row="1" Text="{Binding PersonaContent,UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" MinHeight="180"/></Grid>
        <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,18,0,0">
-        <Button Content="Delete" Click="DeletePersona_OnClick" Style="{StaticResource DangerOutlineButtonStyle}"/>
+        <Button Content="Delete" Click="DeletePersona_OnClick" Style="{StaticResource SelectionRequiredDangerButtonStyle}" Tag="{Binding SelectedPersona}"/>
         <Button Content="Save persona" Command="{Binding SavePersonaCommand}" Style="{StaticResource PrimaryButtonStyle}" Margin="0"/>
        </StackPanel>
       </Grid>
@@ -52,7 +64,12 @@
      <Border Style="{StaticResource SurfaceBorderStyle}" Padding="12">
       <Grid><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
        <TextBlock Text="Lorebooks" FontSize="15" FontWeight="SemiBold" Margin="4,4,4,12"/>
-       <ListBox Grid.Row="1" ItemsSource="{Binding Lorebooks}" SelectedItem="{Binding SelectedLorebook}" DisplayMemberPath="Name"/>
+       <Grid Grid.Row="1">
+        <ListBox x:Name="LorebookList" ItemsSource="{Binding Lorebooks}" SelectedItem="{Binding SelectedLorebook}" DisplayMemberPath="Name"/>
+        <TextBlock Text="No lorebooks yet" HorizontalAlignment="Center" VerticalAlignment="Center" IsHitTestVisible="False">
+         <TextBlock.Style><Style TargetType="TextBlock" BasedOn="{StaticResource PageSubtitleStyle}"><Style.Triggers><DataTrigger Binding="{Binding HasItems, ElementName=LorebookList}" Value="True"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers></Style></TextBlock.Style>
+        </TextBlock>
+       </Grid>
        <Button Grid.Row="2" Content="+  New lorebook" Command="{Binding NewLorebookCommand}" Margin="0,12,0,0" HorizontalContentAlignment="Center"/>
       </Grid>
      </Border>
@@ -61,8 +78,8 @@
        <TextBlock Text="Lorebook settings" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,16"/>
        <TextBlock Grid.Row="1" Text="Name" Style="{StaticResource FormLabelStyle}"/><TextBox Grid.Row="2" Text="{Binding LorebookName,UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,14"/>
        <TextBlock Grid.Row="3" Text="Description" Style="{StaticResource FormLabelStyle}"/><TextBox Grid.Row="4" Text="{Binding LorebookDescription,UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True" TextWrapping="Wrap" Height="78"/>
-       <StackPanel Grid.Row="5" Margin="0,16,0,0"><CheckBox Content="Enabled" IsChecked="{Binding LorebookEnabled}" Margin="2,0,0,14"/><TextBlock Text="Entries" FontWeight="SemiBold"/><ListBox ItemsSource="{Binding LoreEntries}" SelectedItem="{Binding SelectedLoreEntry}" DisplayMemberPath="Name" Margin="0,8,0,0"/><Button Content="+  New entry" Command="{Binding NewLoreEntryCommand}" Margin="0,10,0,0"/></StackPanel>
-       <StackPanel Grid.Row="6" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0"><Button Content="Delete" Click="DeleteLorebook_OnClick" Style="{StaticResource DangerOutlineButtonStyle}"/><Button Content="Save" Command="{Binding SaveLorebookCommand}" Style="{StaticResource PrimaryButtonStyle}" Margin="0"/></StackPanel>
+       <StackPanel Grid.Row="5" Margin="0,16,0,0"><CheckBox Content="Enabled" IsChecked="{Binding LorebookEnabled}" Margin="2,0,0,14"/><TextBlock Text="Entries" FontWeight="SemiBold"/><Grid Margin="0,8,0,0"><ListBox x:Name="LoreEntryList" ItemsSource="{Binding LoreEntries}" SelectedItem="{Binding SelectedLoreEntry}" DisplayMemberPath="Name"/><TextBlock Text="No entries yet" HorizontalAlignment="Center" VerticalAlignment="Center" IsHitTestVisible="False"><TextBlock.Style><Style TargetType="TextBlock" BasedOn="{StaticResource PageSubtitleStyle}"><Style.Triggers><DataTrigger Binding="{Binding HasItems, ElementName=LoreEntryList}" Value="True"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers></Style></TextBlock.Style></TextBlock></Grid><Button Content="+  New entry" Command="{Binding NewLoreEntryCommand}" Margin="0,10,0,0"/></StackPanel>
+       <StackPanel Grid.Row="6" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0"><Button Content="Delete" Click="DeleteLorebook_OnClick" Style="{StaticResource SelectionRequiredDangerButtonStyle}" Tag="{Binding SelectedLorebook}"/><Button Content="Save" Command="{Binding SaveLorebookCommand}" Style="{StaticResource PrimaryButtonStyle}" Margin="0"/></StackPanel>
       </Grid>
      </Border>
      <Border Grid.Column="4" Style="{StaticResource SurfaceBorderStyle}" Padding="20">
@@ -74,7 +91,7 @@
        <TextBlock Text="Content" Style="{StaticResource FormLabelStyle}"/><TextBox Text="{Binding EntryContent,UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="130" Margin="0,0,0,13"/>
        <WrapPanel><StackPanel Margin="0,0,18,0"><TextBlock Text="Priority" Style="{StaticResource FormLabelStyle}"/><TextBox Text="{Binding EntryPriority}" Width="75"/></StackPanel><StackPanel><TextBlock Text="Depth" Style="{StaticResource FormLabelStyle}"/><TextBox Text="{Binding EntryDepth}" Width="75"/></StackPanel></WrapPanel>
        <WrapPanel Margin="0,16,0,14"><CheckBox Content="Enabled" IsChecked="{Binding EntryEnabled}" Margin="0,0,16,0"/><CheckBox Content="Constant" IsChecked="{Binding EntryConstant}" Margin="0,0,16,0"/><CheckBox Content="Selective" IsChecked="{Binding EntrySelective}"/></WrapPanel>
-       <StackPanel Orientation="Horizontal" HorizontalAlignment="Right"><Button Content="Delete entry" Click="DeleteLoreEntry_OnClick" Style="{StaticResource DangerOutlineButtonStyle}"/><Button Content="Save entry" Command="{Binding SaveLoreEntryCommand}" Style="{StaticResource PrimaryButtonStyle}" Margin="0"/></StackPanel>
+       <StackPanel Orientation="Horizontal" HorizontalAlignment="Right"><Button Content="Delete entry" Click="DeleteLoreEntry_OnClick" Style="{StaticResource SelectionRequiredDangerButtonStyle}" Tag="{Binding SelectedLoreEntry}"/><Button Content="Save entry" Command="{Binding SaveLoreEntryCommand}" Style="{StaticResource PrimaryButtonStyle}" Margin="0"/></StackPanel>
       </StackPanel></ScrollViewer>
      </Border>
     </Grid>
@@ -86,7 +103,14 @@
      <Border Style="{StaticResource SurfaceBorderStyle}" Padding="14">
       <Grid><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
        <StackPanel Margin="4,2,4,12"><TextBlock Text="Prompt presets" FontWeight="SemiBold" FontSize="15"/><TextBlock Text="Reusable model instructions" Style="{StaticResource PageSubtitleStyle}" Margin="0,3,0,0"/></StackPanel>
-       <ListBox Grid.Row="1" ItemsSource="{Binding Presets}" SelectedItem="{Binding SelectedPreset}" DisplayMemberPath="Name"/>
+       <Grid Grid.Row="1">
+        <ListBox x:Name="PresetList" ItemsSource="{Binding Presets}" SelectedItem="{Binding SelectedPreset}" DisplayMemberPath="Name"/>
+        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" IsHitTestVisible="False">
+         <StackPanel.Style><Style TargetType="StackPanel"><Style.Triggers><DataTrigger Binding="{Binding HasItems, ElementName=PresetList}" Value="True"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers></Style></StackPanel.Style>
+         <TextBlock Text="No presets yet" FontWeight="SemiBold" HorizontalAlignment="Center"/>
+         <TextBlock Text="Create one to reuse model instructions." Style="{StaticResource PageSubtitleStyle}" TextAlignment="Center" TextWrapping="Wrap" Margin="0,5,0,0"/>
+        </StackPanel>
+       </Grid>
        <Button Grid.Row="2" Content="+  New preset" Command="{Binding NewPresetCommand}" Margin="0,12,0,0" HorizontalContentAlignment="Center"/>
       </Grid>
      </Border>
@@ -99,7 +123,7 @@
        <TextBlock Text="Model override" Style="{StaticResource FormLabelStyle}"/><TextBox Text="{Binding PresetModel,UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,14"/>
        <WrapPanel><StackPanel Margin="0,0,18,0"><TextBlock Text="Temperature" Style="{StaticResource FormLabelStyle}"/><TextBox Text="{Binding PresetTemperature}" Width="90"/></StackPanel><StackPanel Margin="0,0,18,0"><TextBlock Text="Top P" Style="{StaticResource FormLabelStyle}"/><TextBox Text="{Binding PresetTopP}" Width="90"/></StackPanel><StackPanel><TextBlock Text="Max tokens" Style="{StaticResource FormLabelStyle}"/><TextBox Text="{Binding PresetMaxTokens}" Width="110"/></StackPanel></WrapPanel>
        <TextBlock Text="Leave overrides blank to use the values from Settings." Style="{StaticResource PageSubtitleStyle}" Margin="0,12,0,18"/>
-       <StackPanel Orientation="Horizontal" HorizontalAlignment="Right"><Button Content="Delete" Click="DeletePreset_OnClick" Style="{StaticResource DangerOutlineButtonStyle}"/><Button Content="Save preset" Command="{Binding SavePresetCommand}" Style="{StaticResource PrimaryButtonStyle}" Margin="0"/></StackPanel>
+       <StackPanel Orientation="Horizontal" HorizontalAlignment="Right"><Button Content="Delete" Click="DeletePreset_OnClick" Style="{StaticResource SelectionRequiredDangerButtonStyle}" Tag="{Binding SelectedPreset}"/><Button Content="Save preset" Command="{Binding SavePresetCommand}" Style="{StaticResource PrimaryButtonStyle}" Margin="0"/></StackPanel>
       </StackPanel></ScrollViewer>
      </Border>
     </Grid>
