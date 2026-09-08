@@ -2,7 +2,7 @@ namespace NativeTavern.Helpers;
 
 public static class AppPaths
 {
-    public static string Root { get; } = Path.Combine(AppContext.BaseDirectory, "UserData");
+    public static string Root { get; } = Path.Combine(ResolveApplicationDirectory(), "UserData");
     public static string DataDirectory { get; } = Path.Combine(Root, "Data");
     public static string LogsDirectory { get; } = Path.Combine(Root, "Logs");
     public static string CacheDirectory { get; } = Path.Combine(Root, "Cache");
@@ -11,6 +11,16 @@ public static class AppPaths
     public static string DocumentsDirectory { get; } = Path.Combine(Root, "Documents");
     public static string DatabaseFile { get; } = Path.Combine(DataDirectory, "NativeTavern.db");
     public static string LogFile { get; } = Path.Combine(LogsDirectory, "NativeTavern.log");
+
+    private static string ResolveApplicationDirectory()
+    {
+        var applicationDirectory = Path.TrimEndingDirectorySeparator(AppContext.BaseDirectory);
+        var parent = Directory.GetParent(applicationDirectory)?.FullName;
+        return string.Equals(Path.GetFileName(applicationDirectory), "publish", StringComparison.OrdinalIgnoreCase) &&
+               parent is not null && File.Exists(Path.Combine(parent, "NativeTavern.csproj"))
+            ? parent
+            : applicationDirectory;
+    }
 
     public static void EnsureCreated()
     {
