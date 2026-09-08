@@ -1,979 +1,298 @@
 # NativeTavern
 
-一个面向个人使用的 Windows 原生 AI 角色聊天客户端。
+NativeTavern 是一款面向个人使用的 Windows 原生 AI 角色聊天客户端。它使用 WPF 构建，不依赖浏览器或 Node.js，支持在线 API、本地模型、角色卡、世界书、Persona、提示词预设、知识库和多角色群聊。
 
-## 当前版本：V1.2
+当前版本：**1.2.0**
 
-当前仓库已实现日常角色聊天所需的本地桌面闭环：
+[下载 NativeTavern v1.2.0](https://github.com/mlly-arcol/NativeTavern/releases/tag/v1.2.0)
 
-- .NET 10 + WPF + CommunityToolkit.Mvvm
-- OpenAI Compatible Chat Completions
-- SSE 流式回复与主动停止
-- SQLite 会话、消息和设置持久化
-- Windows DPAPI 加密 API Key
-- 参考桌面版 GPT 的统一浅色设计：工作区侧栏、居中消息流、圆角悬浮输入框和一致的控件状态
-- 中文 / English 界面语言即时切换与持久化
-- 从 NativeTavern/LocalModels 发现 GGUF 文件，并通过 llama.cpp server 在应用内启动、切换和连接
-- 本地文件日志与常见 HTTP 错误提示
-- 角色创建、编辑、删除、搜索、标签与收藏
-- 角色分组创建、重命名、删除、成员多选与折叠展示
-- 基于角色分组创建群聊，并为每条回复显示对应角色的名称和头像
-- 群聊自动选择合适的发言角色，支持手动触发“下一位”以及独立调整会话成员
-- PNG Character Card V2/V3 与 JSON Character Card 导入
-- 本地角色头像管理
-- 角色 First Message
-- 可选的角色上下文发送（默认关闭，需在 Settings 明确启用）
-- 多聊天记录创建、切换和确认删除
-- 单条消息编辑、复制和确认删除
-- 助手回复 Regenerate 与多候选 Swipe
-- Ctrl+Enter 重新生成、Esc 停止生成
-- Persona 创建、编辑、删除与会话绑定
-- Lorebook 与关键词、次级关键词、Priority、Depth 激活
-- Prompt Preset 与模型、Temperature、Top P、Max Tokens 覆盖
-- 每个聊天独立的 Author Note
-- Persona、Lorebook、Prompt Preset 与 Author Note 集中到“对话设置”弹窗
-- Prompt Studio 统一资源管理页面
-- OpenAI、OpenRouter、DeepSeek 与自定义 OpenAI-compatible API
-- Claude 原生 Messages API 与 SSE 流式回复
-- Gemini OpenAI compatibility API
-- Ollama、LM Studio、KoboldCpp 和 llama.cpp 本地服务
-- 本地服务自动扫描与远程/本地模型列表发现
-- Provider 独立默认地址、Context Length 与连接测试
-- 聊天页 Prompt Token Counter 与 Prompt Inspector
-- 图片附件、图片拖放与视觉上下文开关
-- TXT、Markdown、PDF 本地知识库与检索式 RAG
-- 自动上下文摘要，长聊天保留近期消息与本地摘要
-- Windows 系统托盘、回复完成通知、全局快捷键
-- 窗口和聊天输入区的文件拖放
-- 遵循 Windows 动画偏好的主窗口淡入、缩放与位移动画
+## 主要功能
 
-聊天页顶部点击“对话设置”后，可以为当前会话选择 Persona、Lorebook、Prompt Preset 和 Author Note；点击“应用”保存，点击“清除”解除全部 Prompt 资源绑定。知识库片段与图片附件默认只保留在本机，必须在 Settings 中分别启用发送开关才会随模型请求外发。
+### 角色与分组
 
-角色页支持将角色归入分组。包含至少两个角色的分组可以直接创建群聊；群聊会保存独立的成员快照，因此之后修改原角色分组不会影响已有群聊。发送消息时系统会结合角色名称、标签及最近发言情况选择发言者，也可以点击“下一位”继续生成一条角色回复。
+- 创建、编辑、删除和收藏角色
+- 按名称、标签或描述搜索角色
+- 为角色设置本地头像
+- 导入 PNG Character Card V2/V3 和 JSON 角色卡
+- 使用角色卡中的 Description、Personality、Scenario、First Message 和 Example Messages
+- 创建、重命名和删除角色分组
+- 通过复选框调整分组成员
+- 折叠或展开分组；已分组角色不再重复出现在未分组列表
+- 删除分组只会解除角色归属，不会删除角色
 
-开发构建：dotnet build -c Release
+每个角色最多属于一个角色分组。
 
-Windows x64 发布：dotnet publish -c Release -r win-x64 --self-contained true -o publish
+### 单角色聊天
 
-运行后数据写入 %LOCALAPPDATA%\NativeTavern\。首次使用请在 Settings 中填写 Base URL、API Key 与模型名称，并先执行连接测试。
+- 为指定角色创建独立会话
+- 流式显示模型回复，可随时停止生成
+- 编辑、复制和删除单条消息
+- 重新生成助手回复
+- 保存并左右切换多个候选回复（Swipe）
+- 切换或删除历史会话
+- First Message 自动作为角色的首条消息显示
+- 长会话达到 20 条消息后生成本地早期上下文摘要，并保留最近消息
 
-GitHub Releases 提供可直接启动的 Windows x64 自包含单文件版本，不要求目标电脑另行安装 .NET 10 Desktop Runtime。本地每次执行发布命令后，项目会自动将最新文件同步为根目录的 NativeTavern.exe；该大型构建产物不会写入 Git 历史。
+### 多角色群聊
 
-## 一、项目定位
+- 从至少包含两个角色的分组创建群聊
+- 创建时保存独立的成员快照；之后修改原分组不会影响已有群聊
+- 在群聊中独立修改标题和成员
+- 每条助手消息显示实际发言角色的名称和头像
+- 发送用户消息后，根据角色名称、标签和最近发言情况选择发言角色
+- 允许同一角色连续发言，但会降低连续选中的概率
+- 点击“下一位”可在没有新用户消息时继续生成一条角色回复
+- 请求中包含群聊成员资料，并要求模型只扮演本轮选中的角色
 
-NativeTavern 的目标不是完整复刻 SillyTavern 的所有功能，也不是单纯将 SillyTavern 套壳成桌面程序。
+群聊发言者选择是本地启发式规则，不会为了选择发言者额外调用一次模型。
 
-项目定位是：
+### 对话上下文
 
-> 重新设计一个只保留高频核心功能、适合个人长期使用、深度适配 Windows 的本地 AI 角色聊天客户端。
+聊天页顶部的“对话设置”用于配置当前会话：
 
-重点解决以下问题：
+- **Persona**：用户身份、口吻或视角
+- **Lorebook**：按关键词激活的世界信息
+- **Prompt Preset**：System Prompt、Main Prompt、模型和生成参数覆盖
+- **Author Note**：仅作用于当前会话的补充指令
 
-- 不依赖浏览器使用
-- 不依赖 Node.js 环境
-- 不需要通过 localhost 打开网页
-- 启动方式接近普通 Windows 软件
-- 界面针对鼠标、键盘和桌面窗口重新设计
-- 保留 SillyTavern 中最实用的角色卡、世界书、Persona、Prompt 和模型连接能力
-- 尽可能兼容现有 SillyTavern 资源
-- 本地保存聊天和配置
-- 优先保证简单、稳定、可维护
+点击“应用”保存当前配置；点击“清除”解除该会话的全部上下文绑定；关闭或取消弹窗不会保存修改。
 
-本项目主要供个人使用，不以商业发行、大规模用户、多平台支持或插件生态为主要目标。
+“提示词检查器”可查看最终消息结构、估算 Token 数和已激活的 Lorebook 条目。
 
----
+### Prompt Studio
 
-## 二、项目核心原则
+- 创建、编辑和删除 Persona
+- 创建、启用、禁用和删除 Lorebook
+- 管理 Lore Entry 的关键词、次级关键词、优先级、扫描深度和激活方式
+- 创建 Prompt Preset，并覆盖模型、Temperature、Top P 和 Max Tokens
 
-### 1. Windows First
+Lore Entry 支持：
 
-软件首先服务 Windows 桌面环境。
+- 普通关键词触发
+- Constant 始终启用
+- Selective 主关键词与次级关键词联合触发
+- Priority 排序
+- Depth 控制检索最近多少条聊天消息
 
-优先支持：
+### 模型服务
 
-- Windows 11
-- Windows 原生窗口
-- Windows 文件拖放
-- Windows 剪贴板
-- Windows 文件选择器
-- Windows 系统托盘
-- Windows 通知
-- Windows 快捷键
-- Windows 本地文件系统
-- DPAPI 凭据加密
-- 本地模型自动发现
-
-不优先考虑：
-
-- Linux
-- macOS
-- Android
-- iOS
-- Web 版本
-
-### 2. 个人使用优先
-
-不为了未来可能存在的大规模商业需求提前增加复杂架构。
-
-因此第一阶段不考虑：
-
-- 用户注册
-- 多账户
-- 云同步
-- SaaS
-- 商业授权系统
-- 多用户权限
-- 在线插件商城
-- 企业级审计系统
-- 遥测
-- 广告
-- 复杂更新服务器
-
-软件默认所有数据都属于当前 Windows 用户。
-
-### 3. 保留 SillyTavern 的核心体验
-
-项目重点保留以下使用逻辑：
-
-- Character Card
-- Persona
-- Lorebook / World Info
-- System Prompt
-- Prompt Preset
-- Chat History
-- Swipe
-- Regenerate
-- Message Edit
-- 多会话
-- Token 设置
-- Generation Parameters
-- API Provider
-- Streaming
-- Markdown
-
-而不是追求所有边缘功能 1:1 复制。
-
-### 4. 优先兼容已有资源
-
-尽量避免创建封闭格式。
-
-优先支持导入：
-
-- SillyTavern PNG Character Card
-- Character Card JSON
-- Character Card V2
-- Character Card V3
-- SillyTavern Lorebook
-- Preset JSON
-- Chat JSONL
-
-未来条件允许时增加对应导出。
-
-目标是让现有 SillyTavern 用户能够直接迁移大部分资源。
-
----
-
-## 三、主要使用场景
-
-### 场景一：角色聊天
-
-用户启动 NativeTavern。
-
-选择一个已经导入的角色。
-
-选择模型。
-
-直接开始聊天。
-
-聊天过程中可以：
-
-- 流式查看 AI 回复
-- 停止生成
-- 重新生成
-- Swipe 切换回复
-- 修改 AI 消息
-- 修改用户消息
-- 删除消息
-- 复制消息
-- 新建聊天分支
-
-### 场景二：导入角色卡
-
-用户可以直接将 `character.png` 拖入软件窗口。
-
-程序自动识别角色卡 metadata。
-
-显示：
-
-- 角色名称
-- 头像
-- Description
-- Personality
-- Scenario
-- First Message
-- Example Messages
-- Alternate Greetings
-- Creator
-- Tags
-
-确认后导入本地角色库。
-
-### 场景三：连接在线模型
-
-用户可以添加：
+内置以下配置模板：
 
 - OpenAI
 - OpenRouter
-- Claude
-- Gemini
 - DeepSeek
-- 自定义 OpenAI Compatible API
-
-Provider 配置主要包括：
-
-- API Base URL
-- API Key
-- Model
-- Temperature
-- Top P
-- Max Tokens
-- Context Length
-
-API Key 使用 Windows DPAPI 加密保存。
-
-### 场景四：连接本地模型
-
-NativeTavern 自动检测常见本地服务。
-
-包括：
-
+- Claude（Anthropic Messages API）
+- Gemini OpenAI compatibility API
+- 自定义 OpenAI-compatible API
 - Ollama
 - LM Studio
-- KoboldCpp
 - llama.cpp server
-- 其他 OpenAI Compatible Server
 
-检测到服务之后，可以直接显示可用模型。
+设置页支持：
 
-### 场景五：世界书
+- Base URL、API Key 和模型名称
+- 获取远程或本地服务的模型列表
+- 连接测试
+- Temperature、Top P、Max Tokens 和参考 Context Length
+- 扫描正在运行的 Ollama、LM Studio 和 llama.cpp 服务
+- 中文与 English 界面切换
 
-用户可以创建多个 Lorebook。
+API Key 使用 Windows DPAPI 加密，通常只能由保存它的同一 Windows 用户解密。
 
-每个 Lore Entry 包含：
+### 本地 GGUF 模型
 
-- Name
-- Keywords
-- Secondary Keywords
-- Content
-- Priority
-- Depth
-- Enabled
-- Constant
-- Selective
+NativeTavern 可以扫描指定目录顶层的 `.gguf` 文件，并启动外部 `llama.cpp` server。
 
-Prompt 构建时，根据当前聊天内容动态激活对应条目。
-
-### 场景六：Persona
-
-用户可以维护多个用户 Persona。
-
-不同聊天可以选择不同 Persona。
-
-Persona 内容会被加入 Prompt。
-
----
-
-## 四、核心功能范围
-
-### 第一优先级
-
-必须实现。
-
-#### Character
-
-- 创建角色
-- 编辑角色
-- 删除角色
-- 搜索角色
-- 标签
-- 收藏
-- 头像
-- Character Card 导入
-
-#### Chat
-
-- 新建聊天
-- 删除聊天
-- Chat History
-- 流式回复
-- Stop
-- Regenerate
-- Swipe
-- 编辑消息
-- 删除消息
-- 复制消息
-
-#### Provider
-
-至少支持：
-
-- OpenAI Compatible
-- OpenRouter
-- Ollama
-- LM Studio
-
-之后再增加 Claude 和 Gemini 原生 Provider。
-
-#### Prompt Engine
-
-组合顺序：
-
-```text
-System Prompt
-↓
-Main Prompt
-↓
-Character
-↓
-Persona
-↓
-World Info
-↓
-Scenario
-↓
-Example Messages
-↓
-Chat History
-↓
-Author Note
-↓
-User Message
-```
-
-生成最终请求。
-
-#### Lorebook
-
-支持关键词激活。
-
-#### Preset
-
-保存：
-
-- 模型
-- Temperature
-- Top P
-- Max Tokens
-- System Prompt
-- Generation 参数
-
-#### 本地数据保存
-
-使用 SQLite。
-
----
-
-## 五、第二阶段功能
-
-在核心功能稳定之后增加。
-
-包括：
-
-- 聊天分支
-- Prompt Inspector
-- Token Counter
-- RAG
-- 文档知识库
-- PDF/TXT/Markdown 导入
-- 图片附件
-- 图片生成
-- TTS
-- STT
-- 自定义 CSS
-- 主题
-- 正则替换
-- 快捷指令
-- 自动摘要
-
----
-
-## 六、暂不实现的功能
-
-为了控制个人项目复杂度，早期明确不实现：
-
-- 完整 SillyTavern Extension API
-- 插件商城
-- 多用户
-- 在线账户
-- 云端角色同步
-- 内置社区
-- 浏览器版本
-- 手机版本
-- Linux/macOS
-- 企业权限系统
-- Telemetry
-- 商业支付系统
-
----
-
-## 七、技术方案
-
-### 开发语言
-
-- C#
-
-### Runtime
-
-- .NET 10
-
-### UI
-
-推荐：
-
-- WPF
-
-原因：
-
-- Windows 桌面环境成熟
-- 稳定
-- 开发资料多
-- 与 C#/.NET 集成成熟
-- 个人开发维护成本低
-- 比较适合复杂桌面程序
-- 容易接入 WebView2
-
-UI 不追求完全传统 WPF 风格。
-
-整体视觉采用现代化 Windows 桌面设计。
-
----
-
-## 八、界面架构
-
-主要页面：
-
-```text
-MainWindow
-│
-├── Chat
-├── Characters
-├── Lorebooks
-├── Personas
-├── Presets
-└── Settings
-```
-
-推荐主窗口布局：
-
-```text
-┌─────────────────────────────────────────────┐
-│ NativeTavern                            _ □ X│
-├──────────────┬──────────────────────────────┤
-│              │                              │
-│ 💬 Chat       │                              │
-│ 👤 Characters │          内容区域             │
-│ 🌍 Lorebooks  │                              │
-│ 🎭 Personas   │                              │
-│ ⚙ Settings    │                              │
-│              │                              │
-└──────────────┴──────────────────────────────┘
-```
-
----
-
-## 九、聊天界面
-
-聊天页面是整个程序最重要的界面。
-
-每一条 AI 消息支持：
-
-- Copy
-- Edit
-- Delete
-- Regenerate
-- Swipe Left
-- Swipe Right
-
----
-
-## 十、Markdown 渲染
-
-聊天消息可能包含：
-
-- Markdown
-- Code Block
-- Table
-- Quote
-- Spoiler
-- HTML
-- LaTeX
-
-因此推荐采用：
-
-- WPF + WebView2
-- markdown-it
-- KaTeX
-- highlight.js
-
-这样可以避免自己实现复杂富文本排版。
-
----
-
-## 十一、项目结构
-
-初期保持简单。
+默认位置：
 
 ```text
 NativeTavern/
-│
-├── App.xaml
-├── MainWindow.xaml
-│
-├── Views/
-│   ├── ChatView
-│   ├── CharacterView
-│   ├── LorebookView
-│   ├── PersonaView
-│   └── SettingsView
-│
-├── ViewModels/
-│
-├── Models/
-│
-├── Services/
-│   ├── ChatService
-│   ├── CharacterService
-│   ├── LorebookService
-│   └── PromptService
-│
-├── Providers/
-│   ├── ILLMProvider
-│   ├── OpenAIProvider
-│   ├── OllamaProvider
-│   ├── LMStudioProvider
-│   └── OpenRouterProvider
-│
-├── Data/
-│   ├── Database
-│   ├── Repositories
-│   └── Migrations
-│
-├── Prompts/
-│
-├── Importers/
-│   ├── CharacterCardImporter
-│   ├── LorebookImporter
-│   └── ChatImporter
-│
-├── Security/
-│
-├── Utils/
-│
-└── Assets/
+├── llama.cpp/
+│   └── llama-server.exe
+└── LocalModels/
+    └── Qwen3-8B-Q4_K_M.gguf
 ```
 
-项目增长以后再进行拆分。
+默认 llama.cpp 启动配置为：
 
----
+- 地址：`127.0.0.1:8080`
+- Context Size：8192
+- GPU Layers：35
+- Jinja 模板：启用
+- 模型别名：`NativeTavern-Qwen3`
 
-## 十二、MVVM
+`llama-server.exe` 和 GGUF 模型不包含在 GitHub Release 中，需要用户自行准备，也可以在设置页改为其他路径。
 
-采用：
+### 本地知识库
 
-- CommunityToolkit.Mvvm
+- 导入 TXT、Markdown 和 PDF 文件
+- 单个文件最大 20 MB
+- 文档复制到应用数据目录后分块保存
+- 启用或禁用单个文档
+- 根据当前用户消息进行本地关键词检索，最多选取 4 个匹配片段
 
-基本结构：
+当前知识库使用本地关键词匹配，不是向量数据库或语义嵌入检索。
 
-```text
-View
-↓
-ViewModel
-↓
-Service
-↓
-Repository / Provider
-```
+### 图片附件
 
----
+- 支持 PNG、JPG/JPEG、WEBP 和 GIF
+- 单张图片最大 10 MB
+- 可通过按钮选择、拖入输入框或拖入应用窗口
+- 附件保存在本地 `UserData/Attachments`
+- 只有在设置中启用“图片上下文”后，图片才会编码并发送给模型
 
-## 十三、LLM Provider 架构
+### 桌面体验
 
-所有模型统一接口。
-
-```csharp
-public interface ILLMProvider
-{
-    string Id { get; }
-
-    string DisplayName { get; }
-
-    Task<IReadOnlyList<ModelInfo>> GetModelsAsync(
-        CancellationToken cancellationToken);
-
-    IAsyncEnumerable<string> StreamAsync(
-        ChatCompletionRequest request,
-        CancellationToken cancellationToken);
-
-    Task<bool> TestConnectionAsync(
-        CancellationToken cancellationToken);
-}
-```
-
-各 Provider 单独实现。
-
-业务代码不得直接依赖具体 Provider。
-
----
-
-## 十四、Prompt Engine
-
-Prompt Engine 独立于 UI 和具体模型。
-
-主要负责：
-
-- 角色信息
-- Persona
-- World Info
-- Chat History
-- Author Note
-- System Prompt
-- Token Budget
-- Prompt 顺序
-- 上下文裁剪
-
-输入：
-
-```text
-Character
-Persona
-Lorebook
-Chat
-Preset
-Current Message
-```
-
-输出：
-
-```text
-ChatCompletionRequest
-```
-
-Prompt Engine 是整个项目的核心模块之一。
-
----
-
-## 十五、数据库
-
-数据库：
-
-- SQLite
-
-主要表：
-
-```text
-Characters
-Chats
-Messages
-MessageSwipes
-Personas
-Lorebooks
-LoreEntries
-Presets
-Providers
-Models
-Settings
-Attachments
-```
-
-文件类数据，例如头像、背景、生成图片、附件，不直接放数据库。
-
-默认存放：
-
-```text
-%LOCALAPPDATA%\NativeTavern\
-```
-
-目录：
-
-```text
-NativeTavern
-├── Data
-├── Avatars
-├── Attachments
-├── Images
-├── Backgrounds
-├── Cache
-└── Logs
-```
-
----
-
-## 十六、数据访问
-
-个人项目优先简单。
-
-推荐：
-
-- SQLite + Dapper
-
----
-
-## 十七、安全
-
-API Key 不保存为明文。
-
-推荐：
-
-- DPAPI
-
-处理流程：
-
-```text
-用户输入 API Key
-↓
-DPAPI 加密
-↓
-SQLite
-```
-
-日志中禁止输出 API Key。
-
----
-
-## 十八、本地模型
-
-程序启动后尝试检测：
-
-- Ollama
-- LM Studio
-- KoboldCpp
-
-允许用户关闭自动扫描。
-
----
-
-## 十九、RAG
-
-第一版不实现。
-
-后续需要时：
-
-- SQLite + sqlite-vec
-
----
-
-## 二十、日志
-
-使用：
-
-- Microsoft.Extensions.Logging
-
-日志写入：
-
-```text
-%LOCALAPPDATA%\NativeTavern\Logs
-```
-
-主要记录：
-
-- 启动异常
-- 数据库异常
-- Provider 网络错误
-- Character Card 解析错误
-- Prompt 构建异常
-
-默认不记录完整私人聊天内容。
-
----
-
-## 二十一、发布方式
-
-个人使用阶段不强制制作安装程序。
-
-首先使用：
-
-```text
-dotnet publish
-```
-
-发布为 Windows x64 应用。
-
-后续如有需要再增加：
-
-- Velopack
-- MSIX
-
----
-
-## 二十二、版本开发计划
-
-### V0.1
-
-目标：
-
-让 AI 真正回复。
-
-实现：
-
-- WPF 主窗口
-- Chat UI
-- OpenAI Compatible Provider
-- 流式输出
-- 设置
-- 简单 SQLite
-
-### V0.2
-
-目标：
-
-角色系统可用。
-
-实现：
-
-- Character
-- 角色头像
-- 创建/编辑角色
-- PNG Character Card
-- JSON Character Card
-- First Message
-
-### V0.3
-
-目标：
-
-可以长期聊天。
-
-实现：
-
-- Chat History
-- 多聊天
-- 消息编辑
-- 删除
-- Regenerate
-- Swipe
-
-状态：已完成。
-
-### V0.4
-
-目标：
-
-拥有基本 SillyTavern 使用体验。
-
-实现：
-
-- Persona
-- Lorebook
-- Prompt Preset
-- Author Note
-- Prompt Engine
-
-状态：已完成。
-
-### V0.5
-
-增加模型生态。
-
-实现：
-
-- Ollama
-- LM Studio
-- OpenRouter
-- Claude
-- Gemini
-
-状态：已完成。
-
-### V0.6
-
-改善使用体验。
-
-实现：
-
-- Token Counter
-- Prompt Inspector
-- 文件拖放
-- Windows 通知
-- 系统托盘
-- 快捷键
-
-状态：已完成。
-
-### V0.7
-
-高级能力。
-
-实现：
-
-- RAG
-- 文档知识库
-- 图片附件
-- 自动摘要
-
-状态：已完成。
-
-### V1.0
-
-目标：
-
-成为可以完全替代本人日常 SillyTavern 使用的 Windows 客户端。
-
-V1.0 不要求拥有 SillyTavern 的所有功能。
-
-判断是否完成的标准是：
-
-> 自己日常使用过程中已经不再需要打开 SillyTavern。
-
-状态：已完成。V1.0 聚焦个人日常角色聊天闭环，不包含插件商城、多用户或云同步。
-
-### V1.1
-
-目标：将默认本地 GGUF 运行器切换为 llama.cpp server。
-
-实现：
-
-- 使用 NativeTavern/llama.cpp/llama-server.exe 启动本地模型
-- 默认连接 127.0.0.1:8080 的 OpenAI-compatible API
-- 默认加载 NativeTavern/LocalModels/Qwen3-8B-Q4_K_M.gguf
-- 使用 NVIDIA CUDA 后端并保留 GPU 层卸载设置
-
-状态：已完成。
-
-### V1.2
-
-目标：改进多角色会话与桌面启动体验。
-
-实现：
-
-- 角色分组、成员管理与折叠显示
-- 从角色分组创建群聊
-- 群聊成员快照、自动选择发言角色及“下一位”回复
-- 群聊标题和成员独立编辑
-- 对话 Prompt 上下文设置弹窗
+- Windows 系统托盘
+- 模型回复完成通知
 - 主窗口淡入、轻微缩放和位移动画
-- 发布后自动更新仓库根目录启动文件
+- 遵循 Windows“在 Windows 中显示动画”的系统设置
+- 中文和 English 界面
+- 角色卡、图片和知识库文档拖放
 
-状态：已完成。
+## 快速开始
 
----
+1. 从 [GitHub Releases](https://github.com/mlly-arcol/NativeTavern/releases) 下载 `NativeTavern.exe`。
+2. 将 EXE 放进一个可写的独立文件夹。程序会在它旁边创建 `UserData`，建议不要直接放在临时目录。
+3. 启动程序并打开“设置”。
+4. 选择 Provider，填写 Base URL、API Key（如需要）和模型名称。
+5. 点击“测试连接”，成功后点击“保存”。
+6. 前往“角色”创建或导入角色，然后点击“开始对话”。
 
-## 二十三、项目最终目标
+使用本地服务时，可以先启动 Ollama、LM Studio 或 llama.cpp，再在设置页点击“扫描本地服务”；也可以选择 GGUF 文件后由 NativeTavern 启动 llama.cpp。
 
-NativeTavern 不追求成为功能最多的 AI 聊天软件。
+## 创建群聊
 
-最终目标是：
+1. 在“角色”页面点击“创建分组”。
+2. 输入分组名称，并勾选至少两个角色。
+3. 保存后，在分组卡片上点击“群聊”。
+4. 输入消息，系统会自动选择一个角色回复。
+5. 使用聊天页的“成员”修改群聊标题或成员，使用“下一位”继续角色间的对话。
 
-> 一个启动快速、界面干净、完全本地、兼容 SillyTavern 资源、适合 Windows 桌面环境，并且拥有足够角色扮演能力的私人 AI 客户端。
+## 数据与备份
 
-核心价值不是功能数量，而是：
+所有主要数据保存在 EXE 所在目录旁的 `UserData`：
 
 ```text
-简单
-稳定
-本地
-兼容
-易维护
-Windows 原生体验
+UserData/
+├── Data/
+│   └── NativeTavern.db
+├── Avatars/
+├── Attachments/
+├── Documents/
+├── Cache/
+└── Logs/
+    └── NativeTavern.log
 ```
 
-项目的成功标准不是与 SillyTavern 功能数量完全一致，而是能够稳定覆盖个人真正使用的功能，并且使用体验比通过浏览器运行 SillyTavern 更自然。
+- SQLite 数据库保存角色、分组、会话、消息、Swipe、Persona、Lorebook、Preset 和设置。
+- 头像、附件及知识库原始文件以普通文件形式保存。
+- 备份时请先退出 NativeTavern，然后复制整个 `UserData` 文件夹。
+- 不要只复制数据库，否则头像和附件可能缺失。
+- 从旧版本迁移且当前目录还没有数据库时，程序会尝试从旧的 `%LOCALAPPDATA%\NativeTavern` 或 Codex 沙盒数据目录复制旧数据。
+
+在源码仓库中，从根目录或 `publish` 目录启动都会共用项目根目录的同一份 `UserData`，避免产生重复数据目录。
+
+## 隐私设置
+
+下列内容默认不会自动加入模型请求，必须在设置页明确启用：
+
+- 角色卡上下文
+- 本地知识库匹配片段
+- 图片附件数据
+
+Persona、Lorebook、Prompt Preset 和 Author Note 属于用户主动绑定到当前会话的提示词资源。使用在线 Provider 时，实际加入请求的内容会发送给对应服务商；发送前可使用“提示词检查器”查看文本结构。
+
+## 快捷键
+
+| 快捷键 | 功能 |
+| --- | --- |
+| `Ctrl+N` | 新建对话 |
+| `Ctrl+Shift+P` | 打开提示词检查器 |
+| `Ctrl+,` | 打开设置 |
+| `Enter` | 发送消息 |
+| `Shift+Enter` | 输入换行 |
+| `Ctrl+Enter` | 重新生成最后一条助手消息 |
+| `Esc` | 停止当前生成 |
+
+快捷键在 NativeTavern 窗口获得焦点时生效，不是系统级全局热键。
+
+## 系统要求
+
+使用 Release 中的自包含版本：
+
+- Windows x64
+- 无需单独安装 .NET Desktop Runtime
+- 在线模型需要网络连接和相应服务凭据
+- 本地模型的内存、显存和磁盘要求取决于所选 GGUF 模型
+
+从源码构建：
+
+- Windows
+- .NET 10 SDK
+- Git
+
+## 从源码构建
+
+```powershell
+git clone https://github.com/mlly-arcol/NativeTavern.git
+cd NativeTavern
+dotnet restore
+dotnet build NativeTavern.csproj -c Release
+```
+
+运行测试：
+
+```powershell
+dotnet test Tests\NativeTavern.Tests\NativeTavern.Tests.csproj
+```
+
+生成 Windows x64 自包含单文件版本：
+
+```powershell
+dotnet publish NativeTavern.csproj -c Release -r win-x64 --self-contained true -o publish
+```
+
+发布完成后，构建目标会自动把 `publish/NativeTavern.exe` 同步为项目根目录的 `NativeTavern.exe`。该大型构建产物已被 Git 忽略，正式二进制文件通过 GitHub Releases 分发。
+
+## 技术栈
+
+- C# / .NET 10
+- WPF
+- CommunityToolkit.Mvvm
+- SQLite + Dapper
+- Microsoft.Extensions.DependencyInjection / Http / Logging
+- Windows DPAPI
+- PdfPig
+
+核心分层：
+
+```text
+Views → ViewModels → Services → Repositories / Providers
+```
+
+## 当前限制
+
+- 仅支持 Windows x64，没有 Web、Linux、macOS 或移动版本。
+- 聊天消息当前使用普通文本显示，不包含完整 Markdown、代码高亮、LaTeX 或 HTML 渲染器。
+- 当前没有聊天分支、角色卡导出、云同步、多账户或插件系统。
+- 知识库是关键词检索，不是向量 RAG。
+- Release 是便携式单文件程序，没有安装器和在线自动更新器。
+- 本地发布时自动替换根目录 EXE 是开发构建步骤，不是客户端在线更新功能。
+
+## V1.2 更新内容
+
+- 角色分组与折叠显示
+- 分组成员多选、重命名和安全删除
+- 多角色群聊与独立成员快照
+- 自动选择发言角色及“下一位”回复
+- 群聊标题和成员管理
+- 对话上下文设置弹窗
+- 主窗口启动动画
+- 中英文界面文本补充
+- 单一 `UserData` 开发路径
+- 发布后自动更新本地启动文件
+
+## 项目定位
+
+NativeTavern 不是 SillyTavern 的完整复刻，也不追求覆盖所有扩展能力。它专注于一个范围更小的目标：提供干净、原生、可离线保存数据，并适合个人长期使用的 Windows 角色聊天工作区。
