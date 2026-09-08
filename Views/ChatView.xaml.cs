@@ -2,6 +2,7 @@ using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
@@ -189,6 +190,28 @@ public partial class ChatView : UserControl
                 dialog.SelectedLorebook,
                 dialog.SelectedPreset,
                 dialog.AuthorNote);
+    }
+
+    private void NextSpeaker_OnClick(object sender, RoutedEventArgs e)
+    {
+        if (_viewModel is null || sender is not Button button ||
+            !_viewModel.NextSpeakerCommand.CanExecute(null)) return;
+        var menu = new ContextMenu { PlacementTarget = button, Placement = PlacementMode.Bottom };
+        AddSpeakerItem(menu, "自动选择", null);
+        if (_viewModel.GroupMembers.Count > 0) menu.Items.Add(new Separator());
+        foreach (var member in _viewModel.GroupMembers) AddSpeakerItem(menu, member.Name, member);
+        button.ContextMenu = menu;
+        menu.IsOpen = true;
+    }
+
+    private void AddSpeakerItem(ContextMenu menu, string label, NativeTavern.Models.Character? character)
+    {
+        var item = new MenuItem { Header = label };
+        item.Click += async (_, _) =>
+        {
+            if (_viewModel is not null) await _viewModel.GenerateNextSpeakerAsync(character);
+        };
+        menu.Items.Add(item);
     }
 
     private async void DeleteMessage_OnClick(object sender, RoutedEventArgs e)

@@ -81,6 +81,7 @@ public partial class App : Application
         services.AddSingleton<ChatAttachmentRepository>();
         services.AddSingleton<ISecretProtector, DpapiSecretProtector>();
         services.AddSingleton<SettingsService>();
+        services.AddSingleton<BackupService>();
         services.AddSingleton<LocalizationService>();
         services.AddSingleton<Importers.CharacterCardImporter>();
         services.AddSingleton<ICharacterService, CharacterService>();

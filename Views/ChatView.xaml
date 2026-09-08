@@ -31,7 +31,7 @@
      <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
       <Button Content="成员" Click="EditGroupChat_OnClick" Margin="0,0,8,0" ToolTip="管理群聊成员"
               Visibility="{Binding IsGroupChat, Converter={StaticResource BoolToVisibility}}"/>
-      <Button Content="下一位" Command="{Binding NextSpeakerCommand}" Margin="0,0,8,0" ToolTip="让下一位角色发言"
+      <Button Content="下一位 ▾" Click="NextSpeaker_OnClick" Margin="0,0,8,0" ToolTip="自动选择或指定下一位发言角色"
               Visibility="{Binding IsGroupChat, Converter={StaticResource BoolToVisibility}}"/>
       <ComboBox Width="230" Height="38" ItemsSource="{Binding Sessions}" SelectedItem="{Binding SelectedSession}" DisplayMemberPath="Title" Margin="0,0,8,0" ToolTip="Switch conversation"/>
      <Button Content="⚙ 对话设置" Click="PromptSettings_OnClick" Margin="0,0,8,0" ToolTip="对话设置"/>

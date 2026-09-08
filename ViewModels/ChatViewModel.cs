@@ -227,7 +227,9 @@ public partial class ChatViewModel(
     private void Stop() => _generationCancellation?.Cancel();
 
     [RelayCommand(CanExecute = nameof(CanGenerateNextSpeaker))]
-    private async Task NextSpeakerAsync()
+    private Task NextSpeakerAsync() => GenerateNextSpeakerAsync();
+
+    public async Task GenerateNextSpeakerAsync(Character? requestedSpeaker = null)
     {
         if (_session is null || !CanGenerateNextSpeaker()) return;
         ErrorMessage = null;
@@ -237,6 +239,7 @@ public partial class ChatViewModel(
         {
             await chatService.GenerateNextSpeakerAsync(
                 _session,
+                requestedSpeaker?.Id,
                 async assistant =>
                 {
                     var speaker = GroupMembers.FirstOrDefault(x => x.Id == assistant.SpeakerCharacterId);

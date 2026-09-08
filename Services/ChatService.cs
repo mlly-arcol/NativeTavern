@@ -214,6 +214,7 @@ public sealed class ChatService(
 
     public async Task<ChatMessage> GenerateNextSpeakerAsync(
         ChatSession session,
+        long? requestedSpeakerId,
         Func<ChatMessage, Task> onStarted,
         Func<ChatMessage, string, Task> onChunk,
         CancellationToken cancellationToken)
@@ -221,8 +222,17 @@ public sealed class ChatService(
         if (!session.IsGroupChat) throw new InvalidOperationException("当前会话不是群聊。");
         var settings = await LoadConfiguredSettingsAsync();
         var history = await messageRepository.GetBySessionAsync(session.Id);
-        var speaker = await SelectSpeakerAsync(session, history)
+        Character? speaker;
+        if (requestedSpeakerId is long characterId)
+        {
+            speaker = (await GetGroupMembersAsync(session.Id)).FirstOrDefault(x => x.Id == characterId)
+                      ?? throw new InvalidOperationException("所选角色不属于当前群聊。");
+        }
+        else
+        {
+            speaker = await SelectSpeakerAsync(session, history)
                       ?? throw new InvalidOperationException("群聊没有可用角色。");
+        }
         var assistant = new ChatMessage
         {
             ChatSessionId = session.Id,

@@ -1,0 +1,51 @@
+name: Release NativeTavern
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: windows-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Restore
+        shell: pwsh
+        run: |
+          dotnet restore NativeTavern.csproj -r win-x64
+          dotnet restore Tests\NativeTavern.Tests\NativeTavern.Tests.csproj
+
+      - name: Test
+        shell: pwsh
+        run: dotnet test Tests\NativeTavern.Tests\NativeTavern.Tests.csproj -c Release --no-restore
+
+      - name: Publish Windows x64
+        shell: pwsh
+        run: dotnet publish NativeTavern.csproj -c Release -r win-x64 --self-contained true -o publish --no-restore
+
+      - name: Create checksum
+        shell: pwsh
+        run: |
+          $hash = (Get-FileHash -LiteralPath publish\NativeTavern.exe -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  NativeTavern.exe" | Set-Content -LiteralPath publish\SHA256SUMS.txt -Encoding ascii
+
+      - name: Create GitHub Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create $env:GITHUB_REF_NAME publish\NativeTavern.exe publish\SHA256SUMS.txt `
+            --repo $env:GITHUB_REPOSITORY `
+            --title "NativeTavern $env:GITHUB_REF_NAME" `
+            --generate-notes

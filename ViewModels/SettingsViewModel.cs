@@ -14,6 +14,7 @@ public partial class SettingsViewModel(
     ProviderRouter provider,
     ProviderDiscoveryService discoveryService,
     LocalModelService localModelService,
+    BackupService backupService,
     ILogger<SettingsViewModel> logger) : ObservableObject
 {
     public IReadOnlyList<LanguageOption> Languages { get; } =
@@ -49,6 +50,43 @@ public partial class SettingsViewModel(
     private bool _initializing;
 
     public event Action? Saved;
+
+    public async Task CreateBackupAsync(string path)
+    {
+        IsBusy = true;
+        StatusMessage = L("正在创建备份…", "Creating backup…");
+        try
+        {
+            await backupService.CreateAsync(path);
+            StatusMessage = L("备份已创建。", "Backup created.");
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Creating data backup failed.");
+            StatusMessage = L($"备份失败：{ex.Message}", $"Backup failed: {ex.Message}");
+            throw;
+        }
+        finally { IsBusy = false; }
+    }
+
+    public async Task<string> RestoreBackupAsync(string path)
+    {
+        IsBusy = true;
+        StatusMessage = L("正在恢复备份…", "Restoring backup…");
+        try
+        {
+            var safetyBackup = await backupService.RestoreAsync(path);
+            StatusMessage = L("恢复完成，需要重新启动。", "Restore complete. Restart required.");
+            return safetyBackup;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Restoring data backup failed.");
+            StatusMessage = L($"恢复失败：{ex.Message}", $"Restore failed: {ex.Message}");
+            throw;
+        }
+        finally { IsBusy = false; }
+    }
 
     public async Task InitializeAsync()
     {
