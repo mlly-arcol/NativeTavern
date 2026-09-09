@@ -8,6 +8,7 @@ namespace NativeTavern.Services;
 public sealed class BackupService
 {
     private static readonly string[] ManagedDirectories = ["Avatars", "Attachments", "Documents"];
+    private static readonly string[] OptionalManagedDirectories = ["Plugins", "PluginData"];
     private static readonly JsonSerializerOptions ManifestJsonOptions = new() { WriteIndented = true };
     private readonly string root;
     private readonly string databaseFile;
@@ -32,6 +33,12 @@ public sealed class BackupService
             Directory.CreateDirectory(Path.Combine(backupRoot, "Data"));
             await SnapshotDatabaseAsync(Path.Combine(backupRoot, "Data", "NativeTavern.db"));
             foreach (var name in ManagedDirectories)
+            {
+                var managedBackupDirectory = Path.Combine(backupRoot, name);
+                Directory.CreateDirectory(managedBackupDirectory);
+                CopyDirectory(Path.Combine(root, name), managedBackupDirectory);
+            }
+            foreach (var name in OptionalManagedDirectories)
             {
                 var managedBackupDirectory = Path.Combine(backupRoot, name);
                 Directory.CreateDirectory(managedBackupDirectory);
@@ -87,6 +94,11 @@ public sealed class BackupService
             File.Copy(restoredDatabase, databaseFile, true);
             foreach (var name in ManagedDirectories)
                 ReplaceDirectory(Path.Combine(restoredRoot, name), Path.Combine(root, name));
+            foreach (var name in OptionalManagedDirectories)
+            {
+                var sourceDirectory = Path.Combine(restoredRoot, name);
+                if (Directory.Exists(sourceDirectory)) ReplaceDirectory(sourceDirectory, Path.Combine(root, name));
+            }
             return safetyBackup;
         }
         finally

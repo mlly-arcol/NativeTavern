@@ -1,8 +1,8 @@
 # NativeTavern
 
-NativeTavern 是一款面向个人使用的 Windows 原生 AI 角色聊天客户端。它使用 WPF 构建，不依赖浏览器或 Node.js，支持在线 API、本地模型、角色卡、世界书、Persona、提示词预设、知识库和多角色群聊。
+NativeTavern 是一款面向个人使用的 Windows 原生 AI 角色聊天客户端。它使用 WPF 构建，不依赖浏览器或 Node.js，支持在线 API、本地模型、角色卡、世界书、Persona、提示词预设、知识库、多角色群聊和插件包管理。
 
-当前版本：**1.2.3**
+当前版本：**1.3.0**
 
 [下载最新版本](https://github.com/mlly-arcol/NativeTavern/releases/latest)
 
@@ -150,6 +150,18 @@ NativeTavern/
 - 中文和 English 界面
 - 角色卡、图片和知识库文档拖放
 
+### 插件中心
+
+- 插件商城与已安装插件分栏
+- 按名称、ID、作者或描述搜索
+- 导入 `.ntplugin` 或 `.zip` 安装包，也可直接拖放安装
+- 启用、停用、升级替换和卸载插件
+- 商城下载强制使用 HTTPS，并校验 SHA-256、插件 ID 与版本
+- 限制压缩包大小、文件数量和解压体积，拦截目录穿越、重复路径与符号链接
+- 插件程序文件与持久数据分离，卸载不会删除插件数据
+
+当前版本只提供插件包和商城管理基础设施，暂不加载或执行插件代码，也不随应用附带具体 Mod。插件包及商城目录规范见 [`docs/plugin-packages.md`](docs/plugin-packages.md)。
+
 ## 快速开始
 
 1. 从 [GitHub Releases](https://github.com/mlly-arcol/NativeTavern/releases) 下载 `NativeTavern.exe`。
@@ -180,6 +192,8 @@ UserData/
 ├── Avatars/
 ├── Attachments/
 ├── Documents/
+├── Plugins/
+├── PluginData/
 ├── Cache/
 └── Logs/
     └── NativeTavern.log
@@ -193,7 +207,7 @@ UserData/
 
 设置页提供“一键创建备份”和“恢复备份”：
 
-- 备份文件为 ZIP，包含数据库、头像、附件和知识库文件。
+- 备份文件为 ZIP，包含数据库、头像、附件、知识库、插件和插件数据。
 - 恢复前会校验备份数据库完整性。
 - 恢复前自动创建一份当前数据的安全备份。
 - 恢复完成后应用会关闭，需要手动重新启动。
@@ -282,10 +296,20 @@ Views → ViewModels → Services → Repositories / Providers
 
 - 仅支持 Windows x64，没有 Web、Linux、macOS 或移动版本。
 - 聊天消息支持常用 Markdown（标题、粗体、斜体、列表、引用、链接、行内代码与代码块）；暂不包含代码语法高亮、LaTeX、HTML 和远程图片渲染。
-- 当前没有聊天分支、角色卡导出、云同步、多账户或插件系统。
+- 当前没有聊天分支、角色卡导出、云同步或多账户。
+- 插件中心目前只负责插件包管理；插件运行时 API、权限授权和代码加载尚未开放。
 - 知识库是关键词检索，不是向量 RAG。
 - Release 是便携式单文件程序，没有安装器和在线自动更新器。
 - 本地发布时自动替换根目录 EXE 是开发构建步骤，不是客户端在线更新功能。
+
+## V1.3.0 更新内容
+
+- 新增插件中心，包含插件商城和已安装插件管理
+- 支持导入、拖放安装、启停、升级替换与卸载插件包
+- 新增 HTTPS 商城下载、SHA-256、插件身份和版本校验
+- 加入压缩包路径、大小、条目数量与解压体积安全限制
+- 插件程序与持久数据分目录保存，并纳入备份和恢复
+- 发布插件包与商城目录格式文档；默认商城为空，不附带具体 Mod
 
 ## V1.2.3 更新内容
 

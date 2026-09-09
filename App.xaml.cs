@@ -95,6 +95,10 @@ public partial class App : Application
         services.AddSingleton<ProviderRouter>();
         services.AddSingleton<ProviderDiscoveryService>();
         services.AddSingleton<LocalModelService>();
+        services.AddHttpClient("PluginDownloads", client => client.Timeout = TimeSpan.FromMinutes(5));
+        services.AddSingleton(provider => new PluginService(
+            provider.GetRequiredService<IHttpClientFactory>().CreateClient("PluginDownloads"),
+            provider.GetRequiredService<ILogger<PluginService>>()));
         services.AddSingleton<ILLMProvider>(provider => provider.GetRequiredService<ProviderRouter>());
         services.AddSingleton<ChatService>();
         services.AddSingleton<ChatViewModel>();
@@ -103,6 +107,7 @@ public partial class App : Application
         services.AddSingleton<PromptStudioViewModel>();
         services.AddSingleton<KnowledgeViewModel>();
         services.AddSingleton<PromptInspectorViewModel>();
+        services.AddSingleton<PluginsViewModel>();
         services.AddSingleton<MainViewModel>();
         services.AddSingleton<MainWindow>();
     }

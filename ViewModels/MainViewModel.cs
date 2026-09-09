@@ -13,11 +13,12 @@ public partial class MainViewModel : ObservableObject
     public PromptStudioViewModel PromptStudio { get; }
     public KnowledgeViewModel Knowledge { get; }
     public PromptInspectorViewModel PromptInspector { get; }
+    public PluginsViewModel Plugins { get; }
 
     [ObservableProperty]
     private object _currentViewModel;
 
-    public MainViewModel(ChatViewModel chat, SettingsViewModel settings, CharactersViewModel characters, PromptStudioViewModel promptStudio, KnowledgeViewModel knowledge, PromptInspectorViewModel promptInspector, LocalizationService localizationService)
+    public MainViewModel(ChatViewModel chat, SettingsViewModel settings, CharactersViewModel characters, PromptStudioViewModel promptStudio, KnowledgeViewModel knowledge, PromptInspectorViewModel promptInspector, PluginsViewModel plugins, LocalizationService localizationService)
     {
         Chat = chat;
         Settings = settings;
@@ -25,6 +26,7 @@ public partial class MainViewModel : ObservableObject
         PromptStudio = promptStudio;
         Knowledge = knowledge;
         PromptInspector = promptInspector;
+        Plugins = plugins;
         _localizationService = localizationService;
         _currentViewModel = chat;
         chat.ConfigureRequested += ShowSettings;
@@ -44,6 +46,7 @@ public partial class MainViewModel : ObservableObject
         await Characters.InitializeAsync();
         await PromptStudio.InitializeAsync();
         await Knowledge.InitializeAsync();
+        await Plugins.InitializeAsync();
     }
 
     [RelayCommand]
@@ -77,6 +80,13 @@ public partial class MainViewModel : ObservableObject
     {
         CurrentViewModel = PromptInspector;
         await PromptInspector.RefreshCommand.ExecuteAsync(null);
+    }
+
+    [RelayCommand]
+    private async Task ShowPluginsAsync()
+    {
+        CurrentViewModel = Plugins;
+        await Plugins.RefreshCommand.ExecuteAsync(null);
     }
 
     private async void StartCharacterChat(Models.Character character)

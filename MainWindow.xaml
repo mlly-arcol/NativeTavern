@@ -41,6 +41,7 @@
                     <Button Content="⌁   Prompt Studio" Style="{StaticResource SelectedNavButtonStyle}" Tag="{Binding PromptStudio}" Command="{Binding ShowPromptStudioCommand}" />
                     <Button Content="▤   Knowledge Base" Style="{StaticResource SelectedNavButtonStyle}" Tag="{Binding Knowledge}" Command="{Binding ShowKnowledgeCommand}" />
                     <Button Content="⌕   Prompt Inspector" Style="{StaticResource SelectedNavButtonStyle}" Tag="{Binding PromptInspector}" Command="{Binding ShowPromptInspectorCommand}" />
+                    <Button Content="⬡   Plugins" Style="{StaticResource SelectedNavButtonStyle}" Tag="{Binding Plugins}" Command="{Binding ShowPluginsCommand}" />
                 </StackPanel>
                 <StackPanel DockPanel.Dock="Bottom">
                     <Separator Margin="6,8" />

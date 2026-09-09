@@ -14,18 +14,22 @@ public sealed class BackupServiceTests
         var root = Path.Combine(parent, "UserData");
         var database = Path.Combine(root, "Data", "NativeTavern.db");
         var avatar = Path.Combine(root, "Avatars", "avatar.png");
+        var plugin = Path.Combine(root, "Plugins", "sample.plugin", "plugin.json");
         var backup = Path.Combine(parent, "backup.zip");
         try
         {
             Directory.CreateDirectory(Path.GetDirectoryName(database)!);
             Directory.CreateDirectory(Path.GetDirectoryName(avatar)!);
+            Directory.CreateDirectory(Path.GetDirectoryName(plugin)!);
             await ExecuteAsync(database, "CREATE TABLE Sample(Value TEXT); INSERT INTO Sample VALUES('before');");
             await File.WriteAllTextAsync(avatar, "avatar-before");
+            await File.WriteAllTextAsync(plugin, "plugin-before");
             var service = new BackupService(root);
 
             await service.CreateAsync(backup);
             await ExecuteAsync(database, "DELETE FROM Sample; INSERT INTO Sample VALUES('after');");
             await File.WriteAllTextAsync(avatar, "avatar-after");
+            await File.WriteAllTextAsync(plugin, "plugin-after");
             var staleAvatar = Path.Combine(root, "Avatars", "stale.png");
             await File.WriteAllTextAsync(staleAvatar, "not-in-backup");
 
@@ -34,6 +38,7 @@ public sealed class BackupServiceTests
             Assert.Equal("before", await ScalarAsync(database, "SELECT Value FROM Sample"));
             Assert.Equal("avatar-before", await File.ReadAllTextAsync(avatar));
             Assert.False(File.Exists(staleAvatar));
+            Assert.Equal("plugin-before", await File.ReadAllTextAsync(plugin));
             Assert.True(File.Exists(safetyBackup));
         }
         finally

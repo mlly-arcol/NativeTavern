@@ -1,0 +1,95 @@
+<UserControl x:Class="NativeTavern.Views.PluginsView"
+ xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+ xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+ AllowDrop="True" Drop="PluginsView_OnDrop">
+ <Grid Margin="28">
+  <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+
+  <DockPanel Margin="0,0,0,18">
+   <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+    <Button Content="打开插件目录" Click="OpenDirectory_OnClick"/>
+    <Button Content="导入插件包" Style="{StaticResource PrimaryButtonStyle}" Click="InstallPackage_OnClick" Margin="0"/>
+   </StackPanel>
+   <StackPanel>
+    <TextBlock Text="插件中心" Style="{StaticResource PageTitleStyle}"/>
+    <TextBlock Text="发现和管理 NativeTavern 扩展。当前版本仅管理插件包，不加载或执行插件代码。"
+               Style="{StaticResource PageSubtitleStyle}" Margin="0,5,0,0"/>
+   </StackPanel>
+  </DockPanel>
+
+  <Grid Grid.Row="1" Margin="0,0,0,14">
+   <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="280"/></Grid.ColumnDefinitions>
+   <Button Content="插件商城" Command="{Binding ShowMarketplaceCommand}" Padding="18,9">
+    <Button.Style><Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}"><Style.Triggers>
+     <DataTrigger Binding="{Binding IsMarketplaceSelected}" Value="True"><Setter Property="Background" Value="{StaticResource AccentBrush}"/><Setter Property="Foreground" Value="White"/><Setter Property="BorderBrush" Value="{StaticResource AccentBrush}"/></DataTrigger>
+    </Style.Triggers></Style></Button.Style>
+   </Button>
+   <Button Grid.Column="1" Content="已安装" Command="{Binding ShowInstalledCommand}" Padding="18,9">
+    <Button.Style><Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}"><Style.Triggers>
+     <DataTrigger Binding="{Binding IsMarketplaceSelected}" Value="False"><Setter Property="Background" Value="{StaticResource AccentBrush}"/><Setter Property="Foreground" Value="White"/><Setter Property="BorderBrush" Value="{StaticResource AccentBrush}"/></DataTrigger>
+    </Style.Triggers></Style></Button.Style>
+   </Button>
+   <TextBox Grid.Column="3" Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" ToolTip="按名称、ID、作者或描述搜索"/>
+  </Grid>
+
+  <Border Grid.Row="2" Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="10" Padding="10">
+   <Grid>
+    <Grid Visibility="{Binding IsMarketplaceSelected, Converter={StaticResource BoolToVisibility}}">
+     <ListBox ItemsSource="{Binding MarketplacePlugins}" Background="Transparent" BorderThickness="0" HorizontalContentAlignment="Stretch">
+      <ListBox.ItemTemplate><DataTemplate><Border BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,0,1" Padding="14">
+       <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="48"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+        <Border Width="38" Height="38" CornerRadius="10" Background="{StaticResource CardBrush}" VerticalAlignment="Top"><TextBlock Text="◇" FontSize="21" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
+        <StackPanel Grid.Column="1" Margin="12,0,20,0">
+         <StackPanel Orientation="Horizontal"><TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="15"/><TextBlock Text="{Binding Version, StringFormat=  v{0}}" Foreground="{StaticResource SubtleTextBrush}" VerticalAlignment="Center"/></StackPanel>
+         <TextBlock Text="{Binding Description}" TextWrapping="Wrap" Foreground="{StaticResource MutedTextBrush}" Margin="0,5,0,5"/>
+         <TextBlock><Run Text="{Binding Author}"/><Run Text="  ·  "/><Run Text="{Binding Id}"/></TextBlock>
+        </StackPanel>
+        <Button Grid.Column="2" Content="安装" VerticalAlignment="Top" Margin="0"
+                Command="{Binding DataContext.InstallMarketplaceCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" IsEnabled="{Binding CanInstall}">
+         <Button.Style><Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}"><Style.Triggers><DataTrigger Binding="{Binding IsInstalled}" Value="True"><Setter Property="Content" Value="已安装"/></DataTrigger></Style.Triggers></Style></Button.Style>
+        </Button>
+       </Grid>
+      </Border></DataTemplate></ListBox.ItemTemplate>
+     </ListBox>
+     <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="{Binding HasMarketplacePlugins, Converter={StaticResource InverseBoolToVisibility}}">
+      <TextBlock Text="商城中暂无匹配插件" FontSize="17" FontWeight="SemiBold" HorizontalAlignment="Center"/>
+      <TextBlock Text="商城基础设施已经就绪；发布插件目录后，插件会显示在这里。&#x0a;现在也可以导入本地 .ntplugin 或 .zip 安装包。" TextAlignment="Center" Style="{StaticResource PageSubtitleStyle}" Margin="0,8,0,16"/>
+      <Button Content="导入插件包" Click="InstallPackage_OnClick" HorizontalAlignment="Center" Margin="0"/>
+     </StackPanel>
+    </Grid>
+
+    <Grid Visibility="{Binding IsMarketplaceSelected, Converter={StaticResource InverseBoolToVisibility}}">
+     <ListBox ItemsSource="{Binding InstalledPlugins}" Background="Transparent" BorderThickness="0" HorizontalContentAlignment="Stretch">
+      <ListBox.ItemTemplate><DataTemplate><Border BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,0,1" Padding="14">
+       <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="48"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+        <Border Width="38" Height="38" CornerRadius="10" Background="{StaticResource CardBrush}" VerticalAlignment="Top"><TextBlock Text="⬡" FontSize="20" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
+        <StackPanel Grid.Column="1" Margin="12,0,20,0">
+         <StackPanel Orientation="Horizontal"><TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="15"/><TextBlock Text="{Binding Version, StringFormat=  v{0}}" Foreground="{StaticResource SubtleTextBrush}" VerticalAlignment="Center"/></StackPanel>
+         <TextBlock Text="{Binding Description}" TextWrapping="Wrap" Foreground="{StaticResource MutedTextBrush}" Margin="0,5,0,5"/>
+         <TextBlock Text="{Binding PermissionText}" Foreground="{StaticResource SubtleTextBrush}" FontSize="11"/>
+        </StackPanel>
+        <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+         <TextBlock Text="{Binding StateText}" VerticalAlignment="Center" Margin="0,0,12,0"/>
+         <Button Command="{Binding DataContext.TogglePluginCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}">
+          <Button.Style><Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}"><Setter Property="Content" Value="启用"/><Style.Triggers><DataTrigger Binding="{Binding IsEnabled}" Value="True"><Setter Property="Content" Value="停用"/></DataTrigger></Style.Triggers></Style></Button.Style>
+         </Button>
+         <Button Content="卸载" Click="Uninstall_OnClick" Tag="{Binding}" Margin="0" Background="#FFF3F2" Foreground="#B42318" BorderBrush="#F1C6C2"/>
+        </StackPanel>
+       </Grid>
+      </Border></DataTemplate></ListBox.ItemTemplate>
+     </ListBox>
+     <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="{Binding HasInstalledPlugins, Converter={StaticResource InverseBoolToVisibility}}">
+      <TextBlock Text="没有匹配的已安装插件" FontSize="17" FontWeight="SemiBold" HorizontalAlignment="Center"/>
+      <TextBlock Text="把插件安装包拖到此页面，或点击“导入插件包”。" Style="{StaticResource PageSubtitleStyle}" Margin="0,8,0,16"/>
+      <Button Content="导入插件包" Click="InstallPackage_OnClick" HorizontalAlignment="Center" Margin="0"/>
+     </StackPanel>
+    </Grid>
+   </Grid>
+  </Border>
+
+  <DockPanel Grid.Row="3" Margin="0,14,0,0">
+   <Button DockPanel.Dock="Right" Content="刷新" Command="{Binding RefreshCommand}" Margin="8,0,0,0"/>
+   <TextBlock Text="{Binding StatusMessage}" VerticalAlignment="Center" Foreground="{StaticResource MutedTextBrush}" TextTrimming="CharacterEllipsis"/>
+  </DockPanel>
+ </Grid>
+</UserControl>

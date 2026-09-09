@@ -9,6 +9,8 @@ public static class AppPaths
     public static string AvatarsDirectory { get; } = Path.Combine(Root, "Avatars");
     public static string AttachmentsDirectory { get; } = Path.Combine(Root, "Attachments");
     public static string DocumentsDirectory { get; } = Path.Combine(Root, "Documents");
+    public static string PluginsDirectory { get; } = Path.Combine(Root, "Plugins");
+    public static string PluginDataDirectory { get; } = Path.Combine(Root, "PluginData");
     public static string DatabaseFile { get; } = Path.Combine(DataDirectory, "NativeTavern.db");
     public static string LogFile { get; } = Path.Combine(LogsDirectory, "NativeTavern.log");
 
@@ -31,6 +33,8 @@ public static class AppPaths
         Directory.CreateDirectory(AvatarsDirectory);
         Directory.CreateDirectory(AttachmentsDirectory);
         Directory.CreateDirectory(DocumentsDirectory);
+        Directory.CreateDirectory(PluginsDirectory);
+        Directory.CreateDirectory(PluginDataDirectory);
     }
 
     private static void MigrateLegacyData()
