@@ -45,6 +45,16 @@ public sealed class DatabaseInitializer(DatabaseConnectionFactory connectionFact
                 "ALTER TABLE ChatSessions ADD COLUMN IsGroupChat INTEGER NOT NULL DEFAULT 0");
             logger.LogInformation("Migrated ChatSessions group chat support.");
         }
+        if (!sessionColumns.Contains("ParentSessionId"))
+        {
+            await connection.ExecuteAsync("ALTER TABLE ChatSessions ADD COLUMN ParentSessionId INTEGER NULL REFERENCES ChatSessions(Id) ON DELETE SET NULL");
+            logger.LogInformation("Migrated ChatSessions branch parent support.");
+        }
+        if (!sessionColumns.Contains("BranchedFromMessageId"))
+        {
+            await connection.ExecuteAsync("ALTER TABLE ChatSessions ADD COLUMN BranchedFromMessageId INTEGER NULL REFERENCES ChatMessages(Id) ON DELETE SET NULL");
+            logger.LogInformation("Migrated ChatSessions branch point support.");
+        }
         if (!columns.Contains("SpeakerCharacterId"))
         {
             await connection.ExecuteAsync(
@@ -55,6 +65,10 @@ public sealed class DatabaseInitializer(DatabaseConnectionFactory connectionFact
             "CREATE INDEX IF NOT EXISTS IX_ChatSessionCharacters_Session ON ChatSessionCharacters(ChatSessionId)");
         await connection.ExecuteAsync(
             "CREATE INDEX IF NOT EXISTS IX_ChatMessages_SpeakerCharacterId ON ChatMessages(SpeakerCharacterId)");
+        await connection.ExecuteAsync(
+            "CREATE INDEX IF NOT EXISTS IX_ChatSessions_ParentSessionId ON ChatSessions(ParentSessionId)");
+        await connection.ExecuteAsync(
+            "CREATE INDEX IF NOT EXISTS IX_ChatSessions_BranchedFromMessageId ON ChatSessions(BranchedFromMessageId)");
         var characterColumns = (await connection.QueryAsync<string>(
             "SELECT name FROM pragma_table_info('Characters')")).ToHashSet(StringComparer.OrdinalIgnoreCase);
         if (!characterColumns.Contains("GroupName"))

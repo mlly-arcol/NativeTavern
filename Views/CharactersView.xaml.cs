@@ -1,6 +1,7 @@
 using Microsoft.Win32;
 using System.Windows;
 using System.Windows.Controls;
+using NativeTavern.Services;
 using NativeTavern.ViewModels;
 
 namespace NativeTavern.Views;
@@ -91,5 +92,19 @@ public partial class CharactersView : UserControl
         if (ConfirmDeleteDialog.Show(this, "删除角色？", $"确定删除“{character.Name}”吗？",
                 "角色卡及其本地头像会被永久移除。此操作无法撤销。", "删除角色"))
             await viewModel.DeleteSelectedAsync();
+    }
+
+    private async void Export_OnClick(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is not CharactersViewModel { SelectedCharacter: not null } viewModel) return;
+        var dialog = new SaveFileDialog
+        {
+            Title = "Export Character Card",
+            FileName = DataExportService.CreateSafeFileName(viewModel.SelectedCharacter.Name, "character") + ".json",
+            DefaultExt = ".json",
+            AddExtension = true,
+            Filter = "Character Card JSON (*.json)|*.json"
+        };
+        if (dialog.ShowDialog() == true) await viewModel.ExportSelectedAsync(dialog.FileName);
     }
 }

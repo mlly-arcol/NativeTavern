@@ -27,11 +27,86 @@ public sealed class ChatService(
 
     public Task<IReadOnlyList<ChatSession>> GetSessionsAsync() => sessionRepository.GetAllAsync();
 
+    public Task<ChatSession?> GetSessionAsync(long id) => sessionRepository.GetAsync(id);
+
     public async Task<IReadOnlyList<Character>> GetGroupMembersAsync(long sessionId) =>
         await characterRepository.GetByIdsAsync(await sessionRepository.GetCharacterIdsAsync(sessionId));
 
     public Task<IReadOnlyList<Character>> GetAllCharactersAsync() =>
         characterRepository.SearchAsync(string.Empty, false);
+
+    public async Task UpdateSessionTitleAsync(ChatSession session, string title)
+    {
+        title = title.Trim();
+        if (title.Length == 0) throw new InvalidOperationException("对话标题不能为空。");
+        if (title.Length > 120) throw new InvalidOperationException("对话标题不能超过 120 个字符。");
+        session.Title = title;
+        session.UpdatedAt = DateTimeOffset.UtcNow;
+        await sessionRepository.UpdateAsync(session);
+    }
+
+    public async Task<ChatSession> BranchSessionAsync(ChatSession source, long throughMessageId)
+    {
+        var history = (await messageRepository.GetBySessionAsync(source.Id)).ToList();
+        var branchPoint = history.FindIndex(x => x.Id == throughMessageId);
+        if (branchPoint < 0) throw new InvalidOperationException("分支起点不属于当前对话。");
+
+        var now = DateTimeOffset.UtcNow;
+        var branch = new ChatSession
+        {
+            Title = CreateBranchTitle(source.Title),
+            CharacterId = source.CharacterId,
+            IsGroupChat = source.IsGroupChat,
+            ParentSessionId = source.Id,
+            BranchedFromMessageId = throughMessageId,
+            PersonaId = source.PersonaId,
+            LorebookId = source.LorebookId,
+            PromptPresetId = source.PromptPresetId,
+            AuthorNote = source.AuthorNote,
+            CreatedAt = now,
+            UpdatedAt = now
+        };
+        await sessionRepository.CreateAsync(branch);
+        try
+        {
+            if (source.IsGroupChat)
+                await sessionRepository.SetCharactersAsync(
+                    branch.Id, await sessionRepository.GetCharacterIdsAsync(source.Id));
+
+            foreach (var original in history.Take(branchPoint + 1))
+            {
+                var clone = new ChatMessage
+                {
+                    ChatSessionId = branch.Id,
+                    Role = original.Role,
+                    SpeakerCharacterId = original.SpeakerCharacterId,
+                    Content = original.Content,
+                    CreatedAt = original.CreatedAt,
+                    UpdatedAt = original.UpdatedAt,
+                    CurrentSwipeIndex = original.CurrentSwipeIndex
+                };
+                await messageRepository.AddAsync(clone);
+                foreach (var swipe in await swipeRepository.GetByMessageAsync(original.Id))
+                    await swipeRepository.AddAsync(new MessageSwipe
+                    {
+                        ChatMessageId = clone.Id,
+                        SwipeIndex = swipe.SwipeIndex,
+                        Content = swipe.Content,
+                        CreatedAt = swipe.CreatedAt
+                    });
+                await attachmentService.CloneAsync(
+                    clone.Id, await attachmentRepository.GetByMessageAsync(original.Id));
+            }
+            return branch;
+        }
+        catch
+        {
+            var attachments = await attachmentRepository.GetBySessionAsync(branch.Id);
+            await sessionRepository.DeleteAsync(branch.Id);
+            attachmentService.DeleteManagedFiles(attachments);
+            throw;
+        }
+    }
 
     public async Task<ChatSession> CreateGroupSessionAsync(string groupName)
     {
@@ -459,4 +534,11 @@ public sealed class ChatService(
     private static string RenderCharacterText(string text, string characterName) =>
         text.Replace("{{char}}", characterName, StringComparison.OrdinalIgnoreCase)
             .Replace("{{user}}", "User", StringComparison.OrdinalIgnoreCase);
+
+    private static string CreateBranchTitle(string title)
+    {
+        const string suffix = " · Branch";
+        var trimmed = title.Trim();
+        return (trimmed.Length > 120 - suffix.Length ? trimmed[..(120 - suffix.Length)] : trimmed) + suffix;
+    }
 }

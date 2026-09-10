@@ -169,6 +169,7 @@
        <StackPanel Orientation="Horizontal">
        <Button Content="Save" Command="{Binding SaveCommand}" Style="{StaticResource PrimaryButtonStyle}"/>
        <Button Content="Start Chat" Command="{Binding StartChatCommand}"/>
+       <Button Content="Export Card" Click="Export_OnClick"/>
        <Button Content="Delete" Click="Delete_OnClick" Background="#FFF3F2" Foreground="#B42318" BorderBrush="#F1C6C2"/>
        </StackPanel>
        <TextBlock Text="{Binding StatusMessage}" Foreground="{StaticResource MutedTextBrush}" TextWrapping="Wrap" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="16,0,0,0"/>

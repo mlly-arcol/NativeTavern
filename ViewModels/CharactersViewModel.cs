@@ -120,6 +120,23 @@ public partial class CharactersViewModel : ObservableObject
         finally { IsBusy = false; }
     }
 
+    public async Task ExportSelectedAsync(string path)
+    {
+        if (SelectedCharacter is null) return;
+        IsBusy = true;
+        try
+        {
+            await DataExportService.ExportCharacterAsync(SelectedCharacter, path);
+            StatusMessage = $"角色卡已导出：{Path.GetFileName(path)}";
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException)
+        {
+            logger.LogWarning(ex, "Character card export failed.");
+            StatusMessage = "导出失败：" + ex.Message;
+        }
+        finally { IsBusy = false; }
+    }
+
     [RelayCommand]
     private void NewCharacter()
     {

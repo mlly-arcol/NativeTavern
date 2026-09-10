@@ -25,13 +25,17 @@ CREATE TABLE IF NOT EXISTS ChatSessions (
     Title TEXT NOT NULL,
     CharacterId INTEGER NULL,
     IsGroupChat INTEGER NOT NULL DEFAULT 0,
+    ParentSessionId INTEGER NULL,
+    BranchedFromMessageId INTEGER NULL,
     PersonaId INTEGER NULL,
     LorebookId INTEGER NULL,
     PromptPresetId INTEGER NULL,
     AuthorNote TEXT NOT NULL DEFAULT '',
     Summary TEXT NOT NULL DEFAULT '',
     CreatedAt TEXT NOT NULL,
-    UpdatedAt TEXT NOT NULL
+    UpdatedAt TEXT NOT NULL,
+    FOREIGN KEY (ParentSessionId) REFERENCES ChatSessions(Id) ON DELETE SET NULL,
+    FOREIGN KEY (BranchedFromMessageId) REFERENCES ChatMessages(Id) ON DELETE SET NULL
 );
 CREATE TABLE IF NOT EXISTS ChatSessionCharacters (
     ChatSessionId INTEGER NOT NULL,

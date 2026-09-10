@@ -20,13 +20,22 @@
    <Grid>
     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
     <StackPanel VerticalAlignment="Center">
-     <TextBlock Text="{Binding SessionTitle}" FontSize="16" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+     <StackPanel Orientation="Horizontal">
+      <TextBlock Text="{Binding SessionTitle}" FontSize="16" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" MaxWidth="430"/>
+      <Button Content="✎" Click="RenameChat_OnClick" Style="{StaticResource GhostButtonStyle}" Padding="5,1" Margin="5,0,0,0"
+              ToolTip="Rename conversation" AutomationProperties.Name="Rename conversation"/>
+     </StackPanel>
      <StackPanel Orientation="Horizontal" Margin="0,3,0,0">
       <Ellipse Width="6" Height="6" Fill="{StaticResource AccentBrush}" VerticalAlignment="Center" Margin="0,0,6,0"/>
       <TextBlock Text="Local workspace" Foreground="{StaticResource MutedTextBrush}" FontSize="11"/>
       <TextBlock Text="  ·  ~" Foreground="{StaticResource SubtleTextBrush}" FontSize="11"/>
       <TextBlock Text="{Binding EstimatedPromptTokens}" Foreground="{StaticResource SubtleTextBrush}" FontSize="11"/>
       <TextBlock Text=" tokens" Foreground="{StaticResource SubtleTextBrush}" FontSize="11"/>
+      <TextBlock Text="  ·  Branch" Foreground="{StaticResource MutedTextBrush}" FontSize="11"
+                 Visibility="{Binding IsBranch, Converter={StaticResource BoolToVisibility}}"/>
+      <Button Content="返回源对话" Command="{Binding OpenParentConversationCommand}" Style="{StaticResource GhostButtonStyle}"
+              Padding="5,0" Margin="5,0,0,0" FontSize="11" AutomationProperties.Name="Open source conversation"
+              Visibility="{Binding IsBranch, Converter={StaticResource BoolToVisibility}}"/>
      </StackPanel>
     </StackPanel>
      <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
@@ -36,9 +45,10 @@
               Visibility="{Binding IsGroupChat, Converter={StaticResource BoolToVisibility}}"/>
       <ComboBox Width="230" Height="38" ItemsSource="{Binding Sessions}" SelectedItem="{Binding SelectedSession}" DisplayMemberPath="Title" Margin="0,0,8,0" ToolTip="Switch conversation"/>
      <Button Content="⚙ 对话设置" Click="PromptSettings_OnClick" Margin="0,0,8,0" ToolTip="对话设置"/>
-     <Button Content="⌕" Style="{StaticResource RoundIconButtonStyle}" Command="{Binding OpenPromptInspectorCommand}" Margin="0,0,8,0" ToolTip="Inspect prompt"/>
-     <Button Content="＋" Style="{StaticResource RoundIconButtonStyle}" Command="{Binding NewChatCommand}" Margin="0,0,8,0" ToolTip="New chat"/>
-     <Button Content="⋯" Style="{StaticResource RoundIconButtonStyle}" Click="DeleteChat_OnClick" ToolTip="Delete conversation"/>
+     <Button Content="⌕" Style="{StaticResource RoundIconButtonStyle}" Command="{Binding OpenPromptInspectorCommand}" Margin="0,0,8,0" ToolTip="Inspect prompt" AutomationProperties.Name="Inspect prompt"/>
+     <Button Content="⇩" Style="{StaticResource RoundIconButtonStyle}" Click="ExportChat_OnClick" Margin="0,0,8,0" ToolTip="Export conversation" AutomationProperties.Name="Export conversation"/>
+     <Button Content="＋" Style="{StaticResource RoundIconButtonStyle}" Command="{Binding NewChatCommand}" Margin="0,0,8,0" ToolTip="New chat" AutomationProperties.Name="New conversation"/>
+     <Button Content="⋯" Style="{StaticResource RoundIconButtonStyle}" Click="DeleteChat_OnClick" ToolTip="Delete conversation" AutomationProperties.Name="Delete conversation"/>
     </StackPanel>
    </Grid>
   </Border>
@@ -63,6 +73,7 @@
      <StackPanel><TextBlock Text="Connect a model to start chatting" FontWeight="SemiBold"/><TextBlock Text="Configure a local or cloud provider in Settings." Foreground="#765F18" FontSize="12" Margin="0,3,0,0"/></StackPanel></DockPanel>
    </Border>
         <ListBox x:Name="MessageList" ItemsSource="{Binding Messages}" Background="Transparent" BorderThickness="0"
+                 AutomationProperties.Name="Conversation messages"
                  Padding="0,20,0,12"
                  ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                  ScrollViewer.VerticalScrollBarVisibility="Auto"
@@ -110,6 +121,9 @@
            <Button Content="Copy" Style="{StaticResource MessageActionButtonStyle}" Tag="{Binding}" Click="CopyMessage_OnClick"/>
            <Button Content="Edit" Style="{StaticResource MessageActionButtonStyle}" Command="{Binding DataContext.BeginEditCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}"/>
            <Button Content="Delete" Style="{StaticResource MessageActionButtonStyle}" Tag="{Binding}" Click="DeleteMessage_OnClick"/>
+           <Button Content="Branch" Style="{StaticResource MessageActionButtonStyle}"
+                   Command="{Binding DataContext.BranchFromMessageCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}"
+                   ToolTip="Create a new conversation from this message"/>
            <StackPanel Orientation="Horizontal" Visibility="{Binding IsAssistant, Converter={StaticResource BoolToVisibility}}">
             <Button Content="Regenerate" Style="{StaticResource MessageActionButtonStyle}" Command="{Binding DataContext.RegenerateCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}"/>
             <Button Content="‹" Style="{StaticResource MessageActionButtonStyle}" IsEnabled="{Binding CanSwipeLeft}" Command="{Binding DataContext.SwipeLeftCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" ToolTip="Previous variation"/>
@@ -157,7 +171,7 @@
   <Grid Grid.Row="2" Margin="24,0,24,18">
    <Grid MaxWidth="820" HorizontalAlignment="Stretch">
     <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-    <Border Background="#FDECEC" BorderBrush="#F4C5C5" BorderThickness="1" CornerRadius="8" Padding="11" Margin="0,0,0,8" Visibility="{Binding ErrorMessage, Converter={StaticResource StringToVisibility}}">
+    <Border Background="#FDECEC" BorderBrush="#F4C5C5" BorderThickness="1" CornerRadius="8" Padding="11" Margin="0,0,0,8" Visibility="{Binding ErrorMessage, Converter={StaticResource StringToVisibility}}" AutomationProperties.LiveSetting="Assertive">
      <TextBlock Text="{Binding ErrorMessage}" Foreground="#B42318" TextWrapping="Wrap"/>
     </Border>
     <Border Grid.Row="1" Background="White" BorderBrush="#C9CDD3" BorderThickness="1" CornerRadius="22" Padding="12,9">
@@ -169,16 +183,16 @@
        <ItemsControl.ItemTemplate><DataTemplate><Border Background="#ECEEF0" CornerRadius="8" Padding="8,5" Margin="0,0,7,0"><StackPanel Orientation="Horizontal"><TextBlock Text="{Binding}" MaxWidth="220" FontSize="11" TextTrimming="CharacterEllipsis"/><Button Content="×" Style="{StaticResource GhostButtonStyle}" Padding="4,0" Margin="6,0,0,0" Command="{Binding DataContext.RemovePendingImageCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}"/></StackPanel></Border></DataTemplate></ItemsControl.ItemTemplate>
       </ItemsControl>
       <Grid Grid.Row="1">
-       <TextBox x:Name="ComposerInputBox" Style="{StaticResource ComposerTextBoxStyle}" Padding="9,7" Text="{Binding InputText, UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True" MinHeight="42" MaxHeight="160" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" PreviewKeyDown="InputBox_OnPreviewKeyDown" AllowDrop="True" Drop="InputBox_OnDrop" ToolTip="Message NativeTavern · Enter to send · Shift+Enter for new line"/>
+       <TextBox x:Name="ComposerInputBox" Style="{StaticResource ComposerTextBoxStyle}" Padding="9,7" Text="{Binding InputText, UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True" MinHeight="42" MaxHeight="160" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" PreviewKeyDown="InputBox_OnPreviewKeyDown" AllowDrop="True" Drop="InputBox_OnDrop" ToolTip="Message NativeTavern · Enter to send · Shift+Enter for new line" AutomationProperties.Name="Message input"/>
        <TextBlock Text="给 NativeTavern 发送消息" Foreground="{StaticResource MutedTextBrush}" FontSize="15" Margin="9,7" VerticalAlignment="Top" IsHitTestVisible="False">
         <TextBlock.Style><Style TargetType="TextBlock"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding InputText}" Value=""><Setter Property="Visibility" Value="Visible"/></DataTrigger><DataTrigger Binding="{Binding InputText}" Value="{x:Null}"><Setter Property="Visibility" Value="Visible"/></DataTrigger><DataTrigger Binding="{Binding IsKeyboardFocused, ElementName=ComposerInputBox}" Value="True"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers></Style></TextBlock.Style>
        </TextBlock>
       </Grid>
       <Grid Grid.Row="2" Margin="0,6,0,0">
-       <Button HorizontalAlignment="Left" Content="＋" Style="{StaticResource RoundIconButtonStyle}" Width="32" Height="32" Background="#ECEEF0" BorderThickness="0" Click="AttachImage_OnClick" ToolTip="Attach image"/>
+       <Button HorizontalAlignment="Left" Content="＋" Style="{StaticResource RoundIconButtonStyle}" Width="32" Height="32" Background="#ECEEF0" BorderThickness="0" Click="AttachImage_OnClick" ToolTip="Attach image" AutomationProperties.Name="Attach image"/>
        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-        <Button Content="■" Style="{StaticResource RoundIconButtonStyle}" Width="32" Height="32" FontSize="11" Background="#E3E5E8" BorderThickness="0" Command="{Binding StopCommand}" Margin="0,0,8,0" ToolTip="Stop"/>
-        <Button Content="↑" Style="{StaticResource RoundIconButtonStyle}" Width="32" Height="32" Background="{StaticResource AccentBrush}" Foreground="White" BorderThickness="0" Command="{Binding SendCommand}" ToolTip="Send"/>
+        <Button Content="■" Style="{StaticResource RoundIconButtonStyle}" Width="32" Height="32" FontSize="11" Background="#E3E5E8" BorderThickness="0" Command="{Binding StopCommand}" Margin="0,0,8,0" ToolTip="Stop" AutomationProperties.Name="Stop generation"/>
+        <Button Content="↑" Style="{StaticResource RoundIconButtonStyle}" Width="32" Height="32" Background="{StaticResource AccentBrush}" Foreground="White" BorderThickness="0" Command="{Binding SendCommand}" ToolTip="Send" AutomationProperties.Name="Send message"/>
        </StackPanel>
       </Grid>
      </Grid>

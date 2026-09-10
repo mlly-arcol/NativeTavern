@@ -49,6 +49,90 @@ public sealed class CharacterCardImporterTests
     }
 
     [Fact]
+    public void ExportedCharacterCardRoundTripsThroughV3Importer()
+    {
+        var source = new Character
+        {
+            Name = "Vera",
+            Description = "Explorer",
+            Personality = "Curious",
+            Scenario = "A tavern",
+            FirstMessage = "Hello {{user}}",
+            ExampleMessages = "{{char}}: Welcome",
+            Creator = "Tester",
+            Tags = "adventure, friendly"
+        };
+
+        var json = DataExportService.BuildCharacterCardJson(source);
+        var exported = _importer.ParseJson(json);
+
+        Assert.Contains("\"spec\":\"chara_card_v3\"", json);
+        Assert.Equal(source.Name, exported.Name);
+        Assert.Equal(source.FirstMessage, exported.FirstMessage);
+        Assert.Equal(source.Tags, exported.Tags);
+    }
+
+    [Fact]
+    public void ConversationExportPreservesGroupSpeakerNames()
+    {
+        var session = new ChatSession
+        {
+            Title = "Adventure",
+            IsGroupChat = true,
+            CreatedAt = DateTimeOffset.Parse("2026-01-01T00:00:00Z"),
+            UpdatedAt = DateTimeOffset.Parse("2026-01-01T00:01:00Z")
+        };
+        var messages = new[]
+        {
+            new ChatMessage
+            {
+                Role = ChatRole.User,
+                Content = "Hello",
+                CreatedAt = session.CreatedAt
+            },
+            new ChatMessage
+            {
+                Role = ChatRole.Assistant,
+                SpeakerCharacterId = 7,
+                Content = "Welcome",
+                CreatedAt = session.UpdatedAt
+            }
+        };
+
+        var markdown = DataExportService.BuildConversationMarkdown(
+            session, messages, new Dictionary<long, string> { [7] = "Alice" });
+        var json = DataExportService.BuildConversationJson(
+            session, messages, new Dictionary<long, string> { [7] = "Alice" });
+
+        Assert.Contains("# Adventure", markdown);
+        Assert.Contains("## Alice", markdown);
+        Assert.Contains("Welcome", markdown);
+        Assert.Contains("\"speaker\":\"Alice\"", json);
+        Assert.Contains("\"is_group_chat\":true", json);
+    }
+
+    [Fact]
+    public async Task CharacterExportAtomicallyReplacesExistingFile()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), "NativeTavernExportTest-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        var path = Path.Combine(directory, "character.json");
+        try
+        {
+            await File.WriteAllTextAsync(path, "old content");
+
+            await DataExportService.ExportCharacterAsync(new Character { Name = "Alice" }, path);
+
+            Assert.Equal("Alice", _importer.ParseJson(await File.ReadAllTextAsync(path)).Name);
+            Assert.Empty(Directory.GetFiles(directory, "*.tmp"));
+        }
+        finally
+        {
+            Directory.Delete(directory, true);
+        }
+    }
+
+    [Fact]
     public async Task PngPrefersCcv3OverChara()
     {
         var path = Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".png");

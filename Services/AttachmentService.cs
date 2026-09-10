@@ -40,6 +40,38 @@ public sealed class AttachmentService(
 
     public Task<IReadOnlyList<ChatAttachment>> GetByMessageAsync(long messageId) => repository.GetByMessageAsync(messageId);
 
+    public async Task<IReadOnlyList<ChatAttachment>> CloneAsync(
+        long targetMessageId,
+        IEnumerable<ChatAttachment> sourceAttachments)
+    {
+        var cloned = new List<ChatAttachment>();
+        foreach (var source in sourceAttachments)
+        {
+            if (!ManagedFile.IsInsideDirectory(source.FilePath, AppPaths.AttachmentsDirectory) ||
+                !File.Exists(source.FilePath) || !IsSupportedImage(source.FilePath)) continue;
+            var extension = Path.GetExtension(source.FilePath).ToLowerInvariant();
+            var destination = Path.Combine(AppPaths.AttachmentsDirectory, $"{Guid.NewGuid():N}{extension}");
+            File.Copy(source.FilePath, destination, false);
+            var item = new ChatAttachment
+            {
+                ChatMessageId = targetMessageId,
+                FileName = source.FileName,
+                FilePath = destination,
+                MimeType = source.MimeType,
+                SizeBytes = source.SizeBytes,
+                CreatedAt = source.CreatedAt
+            };
+            try { await repository.AddAsync(item); }
+            catch
+            {
+                ManagedFile.TryDelete(destination, AppPaths.AttachmentsDirectory, logger);
+                throw;
+            }
+            cloned.Add(item);
+        }
+        return cloned;
+    }
+
     public void DeleteManagedFiles(IEnumerable<ChatAttachment> attachments)
     {
         foreach (var attachment in attachments)

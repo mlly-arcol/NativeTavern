@@ -39,6 +39,7 @@ public partial class ChatViewModel(
     [ObservableProperty] private string _currentAssistantName = "NativeTavern";
     [ObservableProperty] private string _currentAssistantAvatarPath = string.Empty;
     [ObservableProperty] private bool _isGroupChat;
+    [ObservableProperty] private bool _isBranch;
 
     private ChatSession? _session;
     private CancellationTokenSource? _generationCancellation;
@@ -140,6 +141,65 @@ public partial class ChatViewModel(
     }
 
     public Task<IReadOnlyList<Character>> GetAllCharactersAsync() => chatService.GetAllCharactersAsync();
+
+    public async Task ExportCurrentConversationAsync(string path)
+    {
+        if (_session is null || IsGenerating) return;
+        var speakerNames = GroupMembers.ToDictionary(x => x.Id, x => x.Name);
+        if (_session.CharacterId is long characterId && !speakerNames.ContainsKey(characterId))
+            speakerNames[characterId] = CurrentAssistantName;
+        await DataExportService.ExportConversationAsync(
+            _session,
+            Messages.Select(x => x.Model),
+            speakerNames,
+            path);
+    }
+
+    public async Task RenameCurrentConversationAsync(string title)
+    {
+        if (_session is null || IsGenerating) return;
+        await chatService.UpdateSessionTitleAsync(_session, title);
+        SessionTitle = _session.Title;
+        await RefreshSessionsAsync(_session.Id);
+    }
+
+    [RelayCommand(CanExecute = nameof(CanBranchFromMessage))]
+    private async Task BranchFromMessageAsync(ChatMessageViewModel? message)
+    {
+        if (_session is null || message is null || IsGenerating) return;
+        try
+        {
+            var branch = await chatService.BranchSessionAsync(_session, message.Model.Id);
+            await RefreshSessionsAsync(branch.Id);
+            await LoadSessionAsync(branch);
+            ErrorMessage = null;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Creating conversation branch failed.");
+            ErrorMessage = "创建聊天分支失败：" + ex.Message;
+        }
+    }
+
+    private bool CanBranchFromMessage(ChatMessageViewModel? message) =>
+        _session is not null && message is not null && !IsGenerating;
+
+    [RelayCommand(CanExecute = nameof(CanOpenParentConversation))]
+    private async Task OpenParentConversationAsync()
+    {
+        if (_session?.ParentSessionId is not long parentId || IsGenerating) return;
+        var parent = await chatService.GetSessionAsync(parentId);
+        if (parent is null)
+        {
+            ErrorMessage = "源对话已被删除。";
+            return;
+        }
+        await LoadSessionAsync(parent);
+        ErrorMessage = null;
+    }
+
+    private bool CanOpenParentConversation() =>
+        _session?.ParentSessionId is not null && !IsGenerating;
 
     public async Task UpdateGroupChatAsync(string title, IReadOnlyCollection<long> characterIds)
     {
@@ -473,6 +533,7 @@ public partial class ChatViewModel(
 
         _session = session;
         IsGroupChat = session.IsGroupChat;
+        IsBranch = session.ParentSessionId is not null;
         GroupMembers.Clear();
         foreach (var member in members) GroupMembers.Add(member);
         CurrentAssistantName = assistantName;
@@ -487,6 +548,8 @@ public partial class ChatViewModel(
         foreach (var message in messageViewModels) Messages.Add(message);
         EstimatedPromptTokens = estimatedTokens;
         NextSpeakerCommand.NotifyCanExecuteChanged();
+        BranchFromMessageCommand.NotifyCanExecuteChanged();
+        OpenParentConversationCommand.NotifyCanExecuteChanged();
     }
 
     private async Task RefreshSessionsAsync(long selectedId)
@@ -565,6 +628,8 @@ public partial class ChatViewModel(
         StopCommand.NotifyCanExecuteChanged();
         NewChatCommand.NotifyCanExecuteChanged();
         NextSpeakerCommand.NotifyCanExecuteChanged();
+        BranchFromMessageCommand.NotifyCanExecuteChanged();
+        OpenParentConversationCommand.NotifyCanExecuteChanged();
     }
     partial void OnHasProviderConfigurationChanged(bool value)
     {

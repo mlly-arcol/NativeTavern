@@ -13,6 +13,110 @@ namespace NativeTavern.Tests;
 public sealed class ChatServiceTests
 {
     [Fact]
+    public async Task DatabaseInitializerMigratesBranchColumns()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), "NativeTavernMigrationTest-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        var database = Path.Combine(directory, "chat.db");
+        try
+        {
+            await using (var connection = new SqliteConnection("Data Source=" + database))
+            {
+                await connection.OpenAsync();
+                var command = connection.CreateCommand();
+                command.CommandText = "CREATE TABLE ChatSessions (Id INTEGER PRIMARY KEY AUTOINCREMENT, Title TEXT NOT NULL, CharacterId INTEGER NULL, CreatedAt TEXT NOT NULL, UpdatedAt TEXT NOT NULL)";
+                await command.ExecuteNonQueryAsync();
+            }
+
+            var factory = new DatabaseConnectionFactory(database);
+            await new DatabaseInitializer(factory, NullLogger<DatabaseInitializer>.Instance).InitializeAsync();
+
+            await using var migrated = new SqliteConnection("Data Source=" + database);
+            await migrated.OpenAsync();
+            var inspect = migrated.CreateCommand();
+            inspect.CommandText = "SELECT name FROM pragma_table_info('ChatSessions') WHERE name IN ('ParentSessionId','BranchedFromMessageId') ORDER BY name";
+            var columns = new List<string>();
+            await using var reader = await inspect.ExecuteReaderAsync();
+            while (await reader.ReadAsync()) columns.Add(reader.GetString(0));
+            Assert.Equal(["BranchedFromMessageId", "ParentSessionId"], columns);
+        }
+        finally
+        {
+            SqliteConnection.ClearAllPools();
+            Directory.Delete(directory, true);
+        }
+    }
+
+    [Fact]
+    public async Task BranchCopiesHistoryThroughSelectedMessageAndTracksOrigin()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), "NativeTavernBranchTest-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        try
+        {
+            var (service, messages) = await CreateServiceAsync(Path.Combine(directory, "chat.db"), new FailingProvider());
+            var source = await service.CreateSessionAsync();
+            var first = new ChatMessage
+            {
+                ChatSessionId = source.Id,
+                Role = ChatRole.User,
+                Content = "branch here",
+                CreatedAt = DateTimeOffset.UtcNow
+            };
+            await messages.AddAsync(first);
+            await messages.AddAsync(new ChatMessage
+            {
+                ChatSessionId = source.Id,
+                Role = ChatRole.Assistant,
+                Content = "do not copy",
+                CreatedAt = DateTimeOffset.UtcNow
+            });
+
+            var branch = await service.BranchSessionAsync(source, first.Id);
+            var copied = Assert.Single(await service.GetMessagesAsync(branch.Id));
+
+            Assert.Equal(source.Id, branch.ParentSessionId);
+            Assert.Equal(first.Id, branch.BranchedFromMessageId);
+            Assert.Equal("branch here", copied.Content);
+            Assert.Equal(branch.Id, copied.ChatSessionId);
+
+            await service.DeleteSessionAsync(source.Id);
+            var survivingBranch = await service.GetSessionAsync(branch.Id);
+            Assert.NotNull(survivingBranch);
+            Assert.Null(survivingBranch!.ParentSessionId);
+            Assert.Single(await service.GetMessagesAsync(branch.Id));
+        }
+        finally
+        {
+            SqliteConnection.ClearAllPools();
+            Directory.Delete(directory, true);
+        }
+    }
+
+    [Fact]
+    public async Task ConversationTitleIsTrimmedAndValidated()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), "NativeTavernTitleTest-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        try
+        {
+            var (service, _) = await CreateServiceAsync(Path.Combine(directory, "chat.db"), new FailingProvider());
+            var session = await service.CreateSessionAsync();
+
+            await service.UpdateSessionTitleAsync(session, "  New title  ");
+
+            Assert.Equal("New title", session.Title);
+            await Assert.ThrowsAsync<InvalidOperationException>(
+                () => service.UpdateSessionTitleAsync(session, "   "));
+        }
+        finally
+        {
+            SqliteConnection.ClearAllPools();
+            Directory.Delete(directory, true);
+        }
+    }
+
+    [Fact]
     public async Task ProviderFailureBeforeFirstChunkDoesNotLeaveBlankAssistantMessage()
     {
         var directory = Path.Combine(Path.GetTempPath(), "NativeTavernChatTest-" + Guid.NewGuid().ToString("N"));

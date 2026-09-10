@@ -6,6 +6,8 @@ public sealed class ChatSession
     public string Title { get; set; } = "New Chat";
     public long? CharacterId { get; set; }
     public bool IsGroupChat { get; set; }
+    public long? ParentSessionId { get; set; }
+    public long? BranchedFromMessageId { get; set; }
     public long? PersonaId { get; set; }
     public long? LorebookId { get; set; }
     public long? PromptPresetId { get; set; }

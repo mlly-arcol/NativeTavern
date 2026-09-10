@@ -7,6 +7,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
 using Microsoft.Win32;
+using NativeTavern.Services;
 using NativeTavern.ViewModels;
 
 namespace NativeTavern.Views;
@@ -202,6 +203,40 @@ public partial class ChatView : UserControl
         if (ConfirmDeleteDialog.Show(this, "删除当前对话？", $"确定删除“{_viewModel.SessionTitle}”吗？",
                 "该对话及其中的全部消息都会被永久删除。此操作无法撤销。", "删除对话"))
             await _viewModel.DeleteCurrentChatAsync();
+    }
+
+    private async void RenameChat_OnClick(object sender, RoutedEventArgs e)
+    {
+        if (_viewModel is null || _viewModel.IsGenerating) return;
+        var title = TextInputDialog.Show(this, "重命名对话", "对话标题", _viewModel.SessionTitle, 120);
+        if (title is null) return;
+        try { await _viewModel.RenameCurrentConversationAsync(title); }
+        catch (InvalidOperationException ex)
+        {
+            MessageBox.Show(ex.Message, "NativeTavern", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+    }
+
+    private async void ExportChat_OnClick(object sender, RoutedEventArgs e)
+    {
+        if (_viewModel is null || _viewModel.IsGenerating) return;
+        var dialog = new SaveFileDialog
+        {
+            Title = "Export Conversation",
+            FileName = DataExportService.CreateSafeFileName(_viewModel.SessionTitle, "conversation"),
+            DefaultExt = ".md",
+            AddExtension = true,
+            Filter = "Markdown (*.md)|*.md|JSON (*.json)|*.json"
+        };
+        if (dialog.ShowDialog() != true) return;
+        try
+        {
+            await _viewModel.ExportCurrentConversationAsync(dialog.FileName);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException)
+        {
+            MessageBox.Show("导出失败：" + ex.Message, "NativeTavern", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
     }
 
     private async void EditGroupChat_OnClick(object sender, RoutedEventArgs e)

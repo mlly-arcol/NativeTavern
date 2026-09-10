@@ -9,8 +9,8 @@ public sealed class ChatSessionRepository(DatabaseConnectionFactory connectionFa
     {
         await using var connection = connectionFactory.CreateConnection();
         session.Id = await connection.ExecuteScalarAsync<long>(
-            "INSERT INTO ChatSessions(Title,CharacterId,IsGroupChat,PersonaId,LorebookId,PromptPresetId,AuthorNote,Summary,CreatedAt,UpdatedAt) " +
-            "VALUES(@Title,@CharacterId,@IsGroupChat,@PersonaId,@LorebookId,@PromptPresetId,@AuthorNote,@Summary,@CreatedAt,@UpdatedAt); SELECT last_insert_rowid();",
+            "INSERT INTO ChatSessions(Title,CharacterId,IsGroupChat,ParentSessionId,BranchedFromMessageId,PersonaId,LorebookId,PromptPresetId,AuthorNote,Summary,CreatedAt,UpdatedAt) " +
+            "VALUES(@Title,@CharacterId,@IsGroupChat,@ParentSessionId,@BranchedFromMessageId,@PersonaId,@LorebookId,@PromptPresetId,@AuthorNote,@Summary,@CreatedAt,@UpdatedAt); SELECT last_insert_rowid();",
             ToParameters(session));
         return session.Id;
     }
@@ -35,7 +35,7 @@ public sealed class ChatSessionRepository(DatabaseConnectionFactory connectionFa
     {
         await using var connection = connectionFactory.CreateConnection();
         await connection.ExecuteAsync(
-            "UPDATE ChatSessions SET Title=@Title,CharacterId=@CharacterId,IsGroupChat=@IsGroupChat,PersonaId=@PersonaId,LorebookId=@LorebookId," +
+            "UPDATE ChatSessions SET Title=@Title,CharacterId=@CharacterId,IsGroupChat=@IsGroupChat,ParentSessionId=@ParentSessionId,BranchedFromMessageId=@BranchedFromMessageId,PersonaId=@PersonaId,LorebookId=@LorebookId," +
             "PromptPresetId=@PromptPresetId,AuthorNote=@AuthorNote,Summary=@Summary,UpdatedAt=@UpdatedAt WHERE Id=@Id",
             ToParameters(session));
     }
@@ -73,7 +73,8 @@ public sealed class ChatSessionRepository(DatabaseConnectionFactory connectionFa
 
     private static object ToParameters(ChatSession value) => new
     {
-        value.Id, value.Title, value.CharacterId, IsGroupChat = value.IsGroupChat ? 1 : 0, value.PersonaId, value.LorebookId,
+        value.Id, value.Title, value.CharacterId, IsGroupChat = value.IsGroupChat ? 1 : 0,
+        value.ParentSessionId, value.BranchedFromMessageId, value.PersonaId, value.LorebookId,
         value.PromptPresetId, value.AuthorNote, value.Summary,
         CreatedAt = value.CreatedAt.ToString("O"),
         UpdatedAt = value.UpdatedAt.ToString("O")
@@ -85,6 +86,8 @@ public sealed class ChatSessionRepository(DatabaseConnectionFactory connectionFa
         public string Title { get; init; } = string.Empty;
         public long? CharacterId { get; init; }
         public int IsGroupChat { get; init; }
+        public long? ParentSessionId { get; init; }
+        public long? BranchedFromMessageId { get; init; }
         public long? PersonaId { get; init; }
         public long? LorebookId { get; init; }
         public long? PromptPresetId { get; init; }
@@ -94,7 +97,8 @@ public sealed class ChatSessionRepository(DatabaseConnectionFactory connectionFa
         public string UpdatedAt { get; init; } = string.Empty;
         public ChatSession ToModel() => new()
         {
-            Id = Id, Title = Title, CharacterId = CharacterId, IsGroupChat = IsGroupChat != 0, PersonaId = PersonaId,
+            Id = Id, Title = Title, CharacterId = CharacterId, IsGroupChat = IsGroupChat != 0,
+            ParentSessionId = ParentSessionId, BranchedFromMessageId = BranchedFromMessageId, PersonaId = PersonaId,
             LorebookId = LorebookId, PromptPresetId = PromptPresetId, AuthorNote = AuthorNote, Summary = Summary,
             CreatedAt = DateTimeOffset.Parse(CreatedAt),
             UpdatedAt = DateTimeOffset.Parse(UpdatedAt)
