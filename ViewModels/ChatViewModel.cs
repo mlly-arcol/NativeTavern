@@ -50,10 +50,12 @@ public partial class ChatViewModel(
 
     private ChatSession? _session;
     private CancellationTokenSource? _generationCancellation;
+    private TaskCompletionSource? _generationCompletion;
     private CancellationTokenSource? _suggestionCancellation;
     private bool _suppressSessionSelection;
     private long _sessionLoadRequestId;
     private long _suggestionRequestId;
+    private bool _isDeletingSession;
 
     public event Action? ConfigureRequested;
     public event Action? PromptInspectorRequested;
@@ -389,14 +391,43 @@ public partial class ChatViewModel(
 
     public async Task DeleteCurrentChatAsync()
     {
-        if (_session is null || IsGenerating) return;
-        var deletedId = _session.Id;
-        await chatService.DeleteSessionAsync(deletedId);
-        var sessions = await chatService.GetSessionsAsync();
-        var next = sessions.FirstOrDefault() ?? await chatService.CreateSessionAsync();
-        await RefreshSessionsAsync(next.Id);
-        await LoadSessionAsync(next);
-        ErrorMessage = null;
+        if (_session is null || _isDeletingSession) return;
+        _isDeletingSession = true;
+        try
+        {
+            if (IsGenerating)
+            {
+                var completion = _generationCompletion?.Task;
+                _generationCancellation?.Cancel();
+                if (completion is not null) await completion;
+            }
+
+            var deletedId = _session?.Id;
+            if (deletedId is null) return;
+            Interlocked.Increment(ref _sessionLoadRequestId);
+            ClearReplySuggestions();
+            await chatService.DeleteSessionAsync(deletedId.Value);
+            if (_session?.Id == deletedId.Value) _session = null;
+
+            var sessions = await chatService.GetSessionsAsync();
+            var next = sessions.FirstOrDefault() ?? await chatService.CreateSessionAsync();
+            await RefreshSessionsAsync(next.Id);
+            await LoadSessionAsync(next);
+            ErrorMessage = null;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Deleting the current conversation failed.");
+            ErrorMessage = "删除对话失败：" + ex.Message;
+            if (_session is null)
+            {
+                var recovery = (await chatService.GetSessionsAsync()).FirstOrDefault()
+                               ?? await chatService.CreateSessionAsync();
+                await RefreshSessionsAsync(recovery.Id);
+                await LoadSessionAsync(recovery);
+            }
+        }
+        finally { _isDeletingSession = false; }
     }
 
     [RelayCommand]
@@ -663,13 +694,14 @@ public partial class ChatViewModel(
     private void SetSelectedSession(long id)
     {
         _suppressSessionSelection = true;
-        SelectedSession = Sessions.FirstOrDefault(x => x.Id == id) ?? _session;
+        SelectedSession = Sessions.FirstOrDefault(x => x.Id == id);
         _suppressSessionSelection = false;
     }
 
     private CancellationTokenSource BeginGeneration()
     {
         IsGenerating = true;
+        _generationCompletion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         _generationCancellation = new CancellationTokenSource();
         return _generationCancellation;
     }
@@ -678,6 +710,8 @@ public partial class ChatViewModel(
     {
         if (ReferenceEquals(_generationCancellation, cancellation)) _generationCancellation = null;
         IsGenerating = false;
+        _generationCompletion?.TrySetResult();
+        _generationCompletion = null;
     }
 
     private bool CanSend() => !IsGenerating && HasProviderConfiguration &&
@@ -700,7 +734,18 @@ public partial class ChatViewModel(
 
     private async Task LoadSessionSafelyAsync(ChatSession session)
     {
-        try { await LoadSessionAsync(session); ErrorMessage = null; }
+        try
+        {
+            var stored = await chatService.GetSessionAsync(session.Id);
+            if (stored is null)
+            {
+                if (_session is not null) SetSelectedSession(_session.Id);
+                return;
+            }
+            if (SelectedSession?.Id != session.Id) return;
+            await LoadSessionAsync(stored);
+            ErrorMessage = null;
+        }
         catch (Exception ex)
         {
             logger.LogError(ex, "Loading chat session failed.");
