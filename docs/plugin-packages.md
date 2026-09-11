@@ -15,13 +15,14 @@ NativeTavern 1.3 提供插件商城与插件包管理基础设施，但暂不加
   "description": "A short description.",
   "homepage": "https://example.com",
   "minimumAppVersion": "1.3.0",
-  "permissions": []
+  "permissions": [],
+  "capabilities": []
 }
 ```
 
 `id` 必须为 2–64 个字符，只能使用小写字母、数字、点、短横线和下划线。`version` 和 `minimumAppVersion` 使用可由 .NET `Version` 解析的版本号。
 
-当前不会识别入口文件，也不会执行包内 DLL、脚本或可执行文件。`permissions` 仅作为未来权限系统的声明与界面展示字段。
+NativeTavern 不执行包内 DLL、脚本或可执行文件。插件可以通过 `capabilities` 请求应用提供的受控声明式能力；当前支持 `character-status-v1`（AI 动态角色状态）。未知能力会被保留但不会执行。`permissions` 用于向用户展示能力所需的数据访问。
 
 ## 商城目录
 

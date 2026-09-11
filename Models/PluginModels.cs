@@ -12,6 +12,7 @@ public sealed class PluginManifest
     public string? Homepage { get; set; }
     public string? MinimumAppVersion { get; set; }
     public IReadOnlyList<string> Permissions { get; set; } = [];
+    public IReadOnlyList<string> Capabilities { get; set; } = [];
 }
 
 public sealed class PluginCatalog

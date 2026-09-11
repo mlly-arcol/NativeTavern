@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using NativeTavern.Data.Repositories;
+using NativeTavern.Helpers;
 using NativeTavern.Models;
 using NativeTavern.Providers;
 
@@ -266,12 +267,17 @@ public sealed class ChatService(
         }
 
         var request = await CreateRequestAsync(session, history, settings, assistant.SpeakerCharacterId);
+        var presentation = new ProgressiveParagraphBuffer();
         try
         {
             await foreach (var chunk in provider.StreamAsync(request, cancellationToken))
             {
                 assistant.Content += chunk;
-                await onChunk(assistant, chunk);
+                foreach (var paragraph in presentation.Append(chunk))
+                {
+                    await onChunk(assistant, paragraph);
+                    await Task.Delay(35);
+                }
             }
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -280,6 +286,8 @@ public sealed class ChatService(
         }
         finally
         {
+            foreach (var paragraph in presentation.Flush())
+                await onChunk(assistant, paragraph);
             assistant.UpdatedAt = DateTimeOffset.UtcNow;
             if (string.IsNullOrEmpty(assistant.Content))
             {
@@ -334,12 +342,17 @@ public sealed class ChatService(
         await messageRepository.AddAsync(assistant);
         await onStarted(assistant);
         var request = await CreateRequestAsync(session, history, settings, speaker.Id);
+        var presentation = new ProgressiveParagraphBuffer();
         try
         {
             await foreach (var chunk in provider.StreamAsync(request, cancellationToken))
             {
                 assistant.Content += chunk;
-                await onChunk(assistant, chunk);
+                foreach (var paragraph in presentation.Append(chunk))
+                {
+                    await onChunk(assistant, paragraph);
+                    await Task.Delay(35);
+                }
             }
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -348,6 +361,8 @@ public sealed class ChatService(
         }
         finally
         {
+            foreach (var paragraph in presentation.Flush())
+                await onChunk(assistant, paragraph);
             assistant.UpdatedAt = DateTimeOffset.UtcNow;
             if (string.IsNullOrEmpty(assistant.Content))
             {
@@ -386,6 +401,8 @@ public sealed class ChatService(
         var swipes = await EnsureSwipeHistoryAsync(target);
         var originalContent = target.Content;
         var newContent = string.Empty;
+        var displayedContent = string.Empty;
+        var presentation = new ProgressiveParagraphBuffer();
         var request = await CreateRequestAsync(
             session, allMessages.Take(targetPosition), settings, target.SpeakerCharacterId);
         await onContentChanged(string.Empty);
@@ -394,7 +411,12 @@ public sealed class ChatService(
             await foreach (var chunk in provider.StreamAsync(request, cancellationToken))
             {
                 newContent += chunk;
-                await onContentChanged(newContent);
+                foreach (var paragraph in presentation.Append(chunk))
+                {
+                    displayedContent += paragraph;
+                    await onContentChanged(displayedContent);
+                    await Task.Delay(35);
+                }
             }
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -403,6 +425,11 @@ public sealed class ChatService(
         }
         finally
         {
+            foreach (var paragraph in presentation.Flush())
+            {
+                displayedContent += paragraph;
+                await onContentChanged(displayedContent);
+            }
             if (!string.IsNullOrEmpty(newContent))
             {
                 var index = swipes.Count;
@@ -469,6 +496,11 @@ public sealed class ChatService(
         var prompt = await promptService.BuildAsync(
             session, requestHistory, settings, speakingCharacterId);
         var messages = new List<ChatCompletionMessage>();
+        messages.Add(new ChatCompletionMessage
+        {
+            Role = "system",
+            Content = "请先在内部组织本次回答的整体框架，再开始作答。使用清晰、完整且不过长的自然段；不要展示内部思考过程。"
+        });
         foreach (var message in prompt.Messages)
         {
             var images = settings.IncludeImageContext && message.SourceMessageId is long messageId

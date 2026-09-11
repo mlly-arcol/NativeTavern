@@ -12,7 +12,7 @@
    </StackPanel>
    <StackPanel>
     <TextBlock Text="插件中心" Style="{StaticResource PageTitleStyle}"/>
-    <TextBlock Text="发现和管理 NativeTavern 扩展。当前版本仅管理插件包，不加载或执行插件代码。"
+    <TextBlock Text="发现和管理 NativeTavern 扩展。支持受控的声明式插件能力，不执行第三方代码。"
                Style="{StaticResource PageSubtitleStyle}" Margin="0,5,0,0"/>
    </StackPanel>
   </DockPanel>

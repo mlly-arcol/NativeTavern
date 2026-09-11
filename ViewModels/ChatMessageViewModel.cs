@@ -15,7 +15,8 @@ public partial class ChatMessageViewModel : ObservableObject
         int swipeCount = 0,
         IEnumerable<ChatAttachment>? attachments = null,
         string? assistantName = null,
-        string? assistantAvatarPath = null)
+        string? assistantAvatarPath = null,
+        long? characterId = null)
     {
         Model = model;
         _content = model.Content;
@@ -24,6 +25,7 @@ public partial class ChatMessageViewModel : ObservableObject
         _assistantName = string.IsNullOrWhiteSpace(assistantName) ? "NativeTavern" : assistantName;
         _assistantAvatarPath = !string.IsNullOrWhiteSpace(assistantAvatarPath) && File.Exists(assistantAvatarPath)
             ? assistantAvatarPath : DefaultAvatarPath;
+        CharacterId = characterId;
         Attachments = new ObservableCollection<ChatAttachment>(attachments ?? []);
     }
 
@@ -33,6 +35,9 @@ public partial class ChatMessageViewModel : ObservableObject
     public string RoleLabel => Role == ChatRole.User ? "You" : _assistantName;
     public string AssistantAvatarPath => IsAssistant ? _assistantAvatarPath : string.Empty;
     public bool HasAssistantAvatar => IsAssistant;
+    public long? CharacterId { get; }
+    public bool HasCharacterStatusTarget => IsAssistant && CharacterId is not null;
+    public bool IsWaitingForResponse => IsAssistant && IsStreaming && string.IsNullOrEmpty(Content);
     public string SwipeDisplay => IsAssistant && SwipeCount > 0
         ? $"{Model.CurrentSwipeIndex + 1} / {SwipeCount}" : string.Empty;
     public bool CanSwipeLeft => IsAssistant && Model.CurrentSwipeIndex > 0;
@@ -43,6 +48,7 @@ public partial class ChatMessageViewModel : ObservableObject
     [ObservableProperty] private bool _isEditing;
     [ObservableProperty] private string _editText;
     [ObservableProperty] private int _swipeCount;
+    [ObservableProperty] private bool _isStreaming;
 
     public void BeginEdit() { EditText = Content; IsEditing = true; }
     public void CancelEdit() { EditText = Content; IsEditing = false; }
@@ -63,7 +69,12 @@ public partial class ChatMessageViewModel : ObservableObject
         OnPropertyChanged(nameof(CanSwipeLeft));
     }
 
-    partial void OnContentChanged(string value) => Model.Content = value;
+    partial void OnContentChanged(string value)
+    {
+        Model.Content = value;
+        OnPropertyChanged(nameof(IsWaitingForResponse));
+    }
+    partial void OnIsStreamingChanged(bool value) => OnPropertyChanged(nameof(IsWaitingForResponse));
     partial void OnSwipeCountChanged(int value)
     {
         OnPropertyChanged(nameof(SwipeDisplay));

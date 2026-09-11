@@ -51,7 +51,7 @@ public partial class PluginsViewModel(PluginService pluginService, ILogger<Plugi
         try
         {
             var plugin = await pluginService.InstallPackageAsync(path);
-            StatusMessage = $"已安装 {plugin.Name} {plugin.Version}。插件将在支持运行时加载后生效。";
+            StatusMessage = $"已安装并启用 {plugin.Name} {plugin.Version}。";
             await ReloadListsAsync();
             IsMarketplaceSelected = false;
         }

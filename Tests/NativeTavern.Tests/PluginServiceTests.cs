@@ -45,6 +45,18 @@ public sealed class PluginServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task EnabledCapabilityFollowsPluginState()
+    {
+        var package = CreatePackageWithCapability("status.plugin", "1.0.0", PluginService.CharacterStatusCapability);
+        var service = CreateService();
+        var installed = await service.InstallPackageAsync(package);
+
+        Assert.True(await service.IsCapabilityEnabledAsync(PluginService.CharacterStatusCapability));
+        await service.SetEnabledAsync(installed.Id, false);
+        Assert.False(await service.IsCapabilityEnabledAsync(PluginService.CharacterStatusCapability));
+    }
+
+    [Fact]
     public async Task UpdatingPackageReplacesOldFiles()
     {
         var service = CreateService();
@@ -118,8 +130,17 @@ public sealed class PluginServiceTests : IDisposable
         return path;
     }
 
-    private static string Manifest(string id, string version) =>
-        $$"""{"id":"{{id}}","name":"Sample","version":"{{version}}","author":"Tests","description":"Test plugin","permissions":[]}""";
+    private string CreatePackageWithCapability(string id, string version, string capability)
+    {
+        Directory.CreateDirectory(root);
+        var path = Path.Combine(root, Guid.NewGuid().ToString("N") + ".ntplugin");
+        using var archive = ZipFile.Open(path, ZipArchiveMode.Create);
+        WriteEntry(archive, "plugin.json", Manifest(id, version, capability));
+        return path;
+    }
+
+    private static string Manifest(string id, string version, string? capability = null) =>
+        $$"""{"id":"{{id}}","name":"Sample","version":"{{version}}","author":"Tests","description":"Test plugin","permissions":[],"capabilities":[{{(capability is null ? "" : "\"" + capability + "\"")}}]}""";
 
     private static void WriteEntry(ZipArchive archive, string name, string content)
     {

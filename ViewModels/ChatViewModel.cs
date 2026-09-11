@@ -14,6 +14,9 @@ public partial class ChatViewModel(
     ChatService chatService,
     PromptRepository promptRepository,
     SettingsService settingsService,
+    CharacterStatusService characterStatusService,
+    ReplySuggestionService replySuggestionService,
+    PluginService pluginService,
     TrayService trayService,
     ILogger<ChatViewModel> logger) : ObservableObject
 {
@@ -24,6 +27,7 @@ public partial class ChatViewModel(
     public ObservableCollection<PromptPreset> Presets { get; } = [];
     public ObservableCollection<string> PendingImagePaths { get; } = [];
     public ObservableCollection<Character> GroupMembers { get; } = [];
+    public ObservableCollection<string> ReplySuggestions { get; } = [];
 
     [ObservableProperty] private string _inputText = string.Empty;
     [ObservableProperty] private bool _isGenerating;
@@ -40,11 +44,16 @@ public partial class ChatViewModel(
     [ObservableProperty] private string _currentAssistantAvatarPath = string.Empty;
     [ObservableProperty] private bool _isGroupChat;
     [ObservableProperty] private bool _isBranch;
+    [ObservableProperty] private bool _isCharacterStatusPluginEnabled;
+    [ObservableProperty] private bool _hasReplySuggestions;
+    [ObservableProperty] private bool _isGeneratingSuggestions;
 
     private ChatSession? _session;
     private CancellationTokenSource? _generationCancellation;
+    private CancellationTokenSource? _suggestionCancellation;
     private bool _suppressSessionSelection;
     private long _sessionLoadRequestId;
+    private long _suggestionRequestId;
 
     public event Action? ConfigureRequested;
     public event Action? PromptInspectorRequested;
@@ -53,12 +62,26 @@ public partial class ChatViewModel(
 
     public async Task InitializeAsync()
     {
+        pluginService.PluginsChanged += OnPluginsChanged;
         var sessions = await chatService.GetSessionsAsync();
         var session = sessions.FirstOrDefault() ?? await chatService.CreateSessionAsync();
         await RefreshPromptOptionsAsync();
         await RefreshSessionsAsync(session.Id);
         await LoadSessionAsync(session);
         await RefreshConfigurationAsync();
+        await RefreshCharacterStatusPluginAsync();
+    }
+
+    public async Task RefreshCharacterStatusPluginAsync() =>
+        IsCharacterStatusPluginEnabled = await characterStatusService.IsEnabledAsync();
+
+    public async Task<CharacterStatusSnapshot?> GetCharacterStatusAsync(ChatMessageViewModel message)
+    {
+        if (_session is null || !message.IsAssistant) return null;
+        var characterId = message.CharacterId;
+        if (characterId is not long id) return null;
+        return await characterStatusService.GetAsync(_session.Id, id)
+               ?? await characterStatusService.UpdateAsync(_session, id, message.Model.Id);
     }
 
     public async Task RefreshConfigurationAsync() =>
@@ -223,6 +246,7 @@ public partial class ChatViewModel(
     {
         if (_session is null || !CanSend()) return;
         ErrorMessage = null;
+        ClearReplySuggestions();
         var input = InputText;
         var images = PendingImagePaths.ToArray();
         InputText = string.Empty;
@@ -243,7 +267,9 @@ public partial class ChatViewModel(
                         assistantViewModel = new ChatMessageViewModel(
                             assistant,
                             assistantName: speaker?.Name ?? CurrentAssistantName,
-                            assistantAvatarPath: speaker?.AvatarPath ?? CurrentAssistantAvatarPath);
+                            assistantAvatarPath: speaker?.AvatarPath ?? CurrentAssistantAvatarPath,
+                            characterId: assistant.SpeakerCharacterId ?? _session.CharacterId);
+                        assistantViewModel.IsStreaming = true;
                         Messages.Add(assistantViewModel);
                         SessionTitle = _session.Title;
                     });
@@ -259,6 +285,8 @@ public partial class ChatViewModel(
             {
                 assistantViewModel.SetSwipeState(0, 1, assistantViewModel.Content);
                 trayService.Notify("NativeTavern", "助手回复已完成。");
+                await RefreshReplySuggestionsAsync(cancellation.Token);
+                await UpdateCharacterStatusAsync(assistantViewModel.Model, cancellation.Token);
             }
             await RefreshSessionsAsync(_session.Id);
             await RefreshTokenEstimateAsync();
@@ -271,6 +299,7 @@ public partial class ChatViewModel(
         }
         finally
         {
+            if (assistantViewModel is not null) assistantViewModel.IsStreaming = false;
             try
             {
                 if (assistantViewModel is not null && !string.IsNullOrEmpty(assistantViewModel.Content))
@@ -298,6 +327,7 @@ public partial class ChatViewModel(
     {
         if (_session is null || !CanGenerateNextSpeaker()) return;
         ErrorMessage = null;
+        ClearReplySuggestions();
         using var cancellation = BeginGeneration();
         ChatMessageViewModel? assistantViewModel = null;
         try
@@ -313,7 +343,9 @@ public partial class ChatViewModel(
                         assistantViewModel = new ChatMessageViewModel(
                             assistant,
                             assistantName: speaker?.Name,
-                            assistantAvatarPath: speaker?.AvatarPath);
+                            assistantAvatarPath: speaker?.AvatarPath,
+                            characterId: assistant.SpeakerCharacterId);
+                        assistantViewModel.IsStreaming = true;
                         Messages.Add(assistantViewModel);
                     });
                 },
@@ -323,7 +355,11 @@ public partial class ChatViewModel(
                 }),
                 cancellation.Token);
             if (assistantViewModel is not null && !string.IsNullOrEmpty(assistantViewModel.Content))
+            {
                 assistantViewModel.SetSwipeState(0, 1, assistantViewModel.Content);
+                await RefreshReplySuggestionsAsync(cancellation.Token);
+                await UpdateCharacterStatusAsync(assistantViewModel.Model, cancellation.Token);
+            }
             await RefreshSessionsAsync(_session.Id);
             await RefreshTokenEstimateAsync();
         }
@@ -335,6 +371,7 @@ public partial class ChatViewModel(
         }
         finally
         {
+            if (assistantViewModel is not null) assistantViewModel.IsStreaming = false;
             if (assistantViewModel is not null && string.IsNullOrEmpty(assistantViewModel.Content))
                 Messages.Remove(assistantViewModel);
             EndGeneration(cancellation);
@@ -382,7 +419,12 @@ public partial class ChatViewModel(
         }
         message.FinishEdit();
         await chatService.UpdateMessageAsync(message.Model);
-        if (message.IsAssistant) message.SetSwipeState(0, 1, message.Content);
+        if (message.IsAssistant)
+        {
+            message.SetSwipeState(0, 1, message.Content);
+            await RefreshReplySuggestionsAsync();
+            await UpdateCharacterStatusAsync(message.Model);
+        }
         ErrorMessage = null;
     }
 
@@ -441,6 +483,52 @@ public partial class ChatViewModel(
         SendCommand.NotifyCanExecuteChanged();
     }
 
+    [RelayCommand]
+    private void SelectReplySuggestion(string? suggestion)
+    {
+        if (!string.IsNullOrWhiteSpace(suggestion)) InputText = suggestion;
+    }
+
+    private async Task RefreshReplySuggestionsAsync(CancellationToken cancellationToken = default)
+    {
+        var session = _session;
+        if (session is null) return;
+        _suggestionCancellation?.Cancel();
+        var linkedCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        _suggestionCancellation = linkedCancellation;
+        var requestId = Interlocked.Increment(ref _suggestionRequestId);
+        ReplySuggestions.Clear();
+        HasReplySuggestions = false;
+        IsGeneratingSuggestions = true;
+        try
+        {
+            var suggestions = await replySuggestionService.GenerateAsync(session, linkedCancellation.Token);
+            if (requestId != Volatile.Read(ref _suggestionRequestId) || _session?.Id != session.Id) return;
+            ReplySuggestions.Clear();
+            foreach (var suggestion in suggestions) ReplySuggestions.Add(suggestion);
+            HasReplySuggestions = ReplySuggestions.Count > 0;
+        }
+        finally
+        {
+            if (ReferenceEquals(_suggestionCancellation, linkedCancellation))
+            {
+                _suggestionCancellation = null;
+            }
+            linkedCancellation.Dispose();
+            if (requestId == Volatile.Read(ref _suggestionRequestId)) IsGeneratingSuggestions = false;
+        }
+    }
+
+    private void ClearReplySuggestions()
+    {
+        _suggestionCancellation?.Cancel();
+        _suggestionCancellation = null;
+        Interlocked.Increment(ref _suggestionRequestId);
+        ReplySuggestions.Clear();
+        HasReplySuggestions = false;
+        IsGeneratingSuggestions = false;
+    }
+
     public Task<PromptBuildResult?> GetPromptPreviewAsync() =>
         _session is null ? Task.FromResult<PromptBuildResult?>(null) : GetPreviewAsync(_session);
 
@@ -452,6 +540,8 @@ public partial class ChatViewModel(
         {
             var result = await chatService.SelectSwipeAsync(message.Model, index);
             message.SetSwipeState(result.Message.CurrentSwipeIndex, result.SwipeCount, result.Message.Content);
+            await RefreshReplySuggestionsAsync();
+            await UpdateCharacterStatusAsync(message.Model);
             ErrorMessage = null;
         }
         catch (Exception ex)
@@ -477,6 +567,7 @@ public partial class ChatViewModel(
 
         ErrorMessage = null;
         using var cancellation = BeginGeneration();
+        message.IsStreaming = true;
         try
         {
             var result = await chatService.GenerateAlternativeAsync(
@@ -484,6 +575,8 @@ public partial class ChatViewModel(
                 async content => await Application.Current.Dispatcher.InvokeAsync(() => message.Content = content),
                 cancellation.Token);
             message.SetSwipeState(result.Message.CurrentSwipeIndex, result.SwipeCount, result.Message.Content);
+            await RefreshReplySuggestionsAsync(cancellation.Token);
+            await UpdateCharacterStatusAsync(message.Model, cancellation.Token);
             await RefreshSessionsAsync(_session.Id);
         }
         catch (ProviderException ex) { ErrorMessage = ex.Message; }
@@ -494,6 +587,7 @@ public partial class ChatViewModel(
         }
         finally
         {
+            message.IsStreaming = false;
             try
             {
                 var count = await chatService.GetSwipeCountAsync(message.Model);
@@ -525,13 +619,15 @@ public partial class ChatViewModel(
                 await countTask,
                 await attachmentsTask,
                 speaker?.Name ?? assistantName,
-                speaker?.AvatarPath ?? assistantAvatarPath));
+                speaker?.AvatarPath ?? assistantAvatarPath,
+                message.SpeakerCharacterId ?? session.CharacterId));
         }
 
         var estimatedTokens = await GetTokenEstimateAsync(session);
         if (requestId != Volatile.Read(ref _sessionLoadRequestId)) return;
 
         _session = session;
+        ClearReplySuggestions();
         IsGroupChat = session.IsGroupChat;
         IsBranch = session.ParentSessionId is not null;
         GroupMembers.Clear();
@@ -550,6 +646,8 @@ public partial class ChatViewModel(
         NextSpeakerCommand.NotifyCanExecuteChanged();
         BranchFromMessageCommand.NotifyCanExecuteChanged();
         OpenParentConversationCommand.NotifyCanExecuteChanged();
+        if (Messages.LastOrDefault()?.IsAssistant == true)
+            _ = RefreshReplySuggestionsAsync();
     }
 
     private async Task RefreshSessionsAsync(long selectedId)
@@ -614,6 +712,16 @@ public partial class ChatViewModel(
     {
         EstimatedPromptTokens = _session is null ? 0 : await GetTokenEstimateAsync(_session);
     }
+
+    private async Task UpdateCharacterStatusAsync(ChatMessage message, CancellationToken cancellationToken = default)
+    {
+        if (_session is null || !IsCharacterStatusPluginEnabled) return;
+        var characterId = message.SpeakerCharacterId ?? _session.CharacterId;
+        if (characterId is long id)
+            await characterStatusService.UpdateAsync(_session, id, message.Id, cancellationToken);
+    }
+
+    private void OnPluginsChanged() => _ = Application.Current.Dispatcher.InvokeAsync(RefreshCharacterStatusPluginAsync);
 
     private async Task<int> GetTokenEstimateAsync(ChatSession session)
     {

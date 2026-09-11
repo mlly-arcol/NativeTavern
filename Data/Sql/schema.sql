@@ -140,3 +140,17 @@ CREATE TABLE IF NOT EXISTS ChatAttachments (
     FOREIGN KEY (ChatMessageId) REFERENCES ChatMessages(Id) ON DELETE CASCADE
 );
 CREATE INDEX IF NOT EXISTS IX_ChatAttachments_ChatMessageId ON ChatAttachments(ChatMessageId);
+CREATE TABLE IF NOT EXISTS CharacterStatuses (
+    ChatSessionId INTEGER NOT NULL,
+    CharacterId INTEGER NOT NULL,
+    CharacterName TEXT NOT NULL,
+    Summary TEXT NOT NULL,
+    AttributesJson TEXT NOT NULL,
+    SourceMessageId INTEGER NULL,
+    UpdatedAt TEXT NOT NULL,
+    PRIMARY KEY(ChatSessionId, CharacterId),
+    FOREIGN KEY (ChatSessionId) REFERENCES ChatSessions(Id) ON DELETE CASCADE,
+    FOREIGN KEY (CharacterId) REFERENCES Characters(Id) ON DELETE CASCADE,
+    FOREIGN KEY (SourceMessageId) REFERENCES ChatMessages(Id) ON DELETE SET NULL
+);
+CREATE INDEX IF NOT EXISTS IX_CharacterStatuses_CharacterId ON CharacterStatuses(CharacterId);

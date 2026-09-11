@@ -1,0 +1,16 @@
+{
+  "id": "nativetavern.dynamic-character-status",
+  "name": "AI 动态角色状态",
+  "version": "1.0.0",
+  "author": "NativeTavern",
+  "description": "根据聊天内容为每个角色生成独立的动态属性，并通过头像下方的状态按钮展示。",
+  "minimumAppVersion": "2.0.0",
+  "permissions": [
+    "读取当前对话与角色卡",
+    "调用已配置的 AI 模型",
+    "保存每个对话中的角色状态"
+  ],
+  "capabilities": [
+    "character-status-v1"
+  ]
+}

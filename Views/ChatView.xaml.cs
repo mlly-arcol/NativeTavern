@@ -300,6 +300,27 @@ public partial class ChatView : UserControl
             Clipboard.SetText(message.Content);
     }
 
+    private async void CharacterStatus_OnClick(object sender, RoutedEventArgs e)
+    {
+        if (_viewModel is null || sender is not Button { Tag: ChatMessageViewModel message } button) return;
+        button.IsEnabled = false;
+        try
+        {
+            var status = await _viewModel.GetCharacterStatusAsync(message);
+            if (status is null)
+            {
+                MessageBox.Show("暂时没有可显示的角色状态。", "角色状态", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+            CharacterStatusDialog.Show(this, status);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show("读取角色状态失败：" + ex.Message, "角色状态", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+        finally { button.IsEnabled = true; }
+    }
+
     private async void InputBox_OnPreviewKeyDown(object sender, KeyEventArgs e)
     {
         if (_viewModel is null) return;

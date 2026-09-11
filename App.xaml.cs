@@ -79,6 +79,7 @@ public partial class App : Application
         services.AddSingleton<PromptRepository>();
         services.AddSingleton<KnowledgeRepository>();
         services.AddSingleton<ChatAttachmentRepository>();
+        services.AddSingleton<CharacterStatusRepository>();
         services.AddSingleton<ISecretProtector, DpapiSecretProtector>();
         services.AddSingleton<SettingsService>();
         services.AddSingleton<BackupService>();
@@ -89,6 +90,8 @@ public partial class App : Application
         services.AddSingleton<KnowledgeService>();
         services.AddSingleton<AttachmentService>();
         services.AddSingleton<ConversationSummaryService>();
+        services.AddSingleton<CharacterStatusService>();
+        services.AddSingleton<ReplySuggestionService>();
         services.AddSingleton<TrayService>();
         services.AddHttpClient<OpenAICompatibleProvider>(client => client.Timeout = Timeout.InfiniteTimeSpan);
         services.AddHttpClient<ClaudeProvider>(client => client.Timeout = Timeout.InfiniteTimeSpan);

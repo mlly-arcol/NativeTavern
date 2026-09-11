@@ -10,6 +10,7 @@ namespace NativeTavern.Services;
 
 public sealed partial class PluginService
 {
+    public const string CharacterStatusCapability = "character-status-v1";
     private const long MaxPackageBytes = 100L * 1024 * 1024;
     private const long MaxExpandedBytes = 500L * 1024 * 1024;
     private const int MaxEntries = 2_000;
@@ -20,6 +21,8 @@ public sealed partial class PluginService
     private readonly ILogger<PluginService> logger;
     private readonly HttpClient httpClient;
     private readonly SemaphoreSlim gate = new(1, 1);
+
+    public event Action? PluginsChanged;
 
     public PluginService(HttpClient httpClient, ILogger<PluginService> logger) : this(AppPaths.PluginsDirectory, httpClient, logger) { }
 
@@ -152,6 +155,7 @@ public sealed partial class PluginService
             }
             if (backup is not null) TryDeleteDirectory(backup);
             logger.LogInformation("Installed plugin {PluginId} version {PluginVersion}", manifest.Id, manifest.Version);
+            PluginsChanged?.Invoke();
             return new InstalledPlugin { Manifest = manifest, DirectoryPath = destination, IsEnabled = true };
         }
         finally
@@ -220,6 +224,7 @@ public sealed partial class PluginService
             states[pluginId] = enabled;
             await WriteJsonAtomicAsync(statePath, states);
             logger.LogInformation("Plugin {PluginId} enabled state changed to {Enabled}", pluginId, enabled);
+            PluginsChanged?.Invoke();
         }
         finally { gate.Release(); }
     }
@@ -234,6 +239,7 @@ public sealed partial class PluginService
             var states = await ReadStatesAsync();
             if (states.Remove(pluginId)) await WriteJsonAtomicAsync(statePath, states);
             logger.LogInformation("Uninstalled plugin {PluginId}", pluginId);
+            PluginsChanged?.Invoke();
         }
         finally { gate.Release(); }
     }
@@ -311,11 +317,18 @@ public sealed partial class PluginService
         manifest.Author ??= string.Empty;
         manifest.Description ??= string.Empty;
         manifest.Permissions ??= [];
+        manifest.Capabilities ??= [];
         if (manifest.Description.Length > 2_000 || manifest.Author.Length > 120)
             throw new InvalidDataException("插件清单文字过长。");
         if (manifest.Permissions.Count > 50 || manifest.Permissions.Any(x => x.Length > 80))
             throw new InvalidDataException("插件声明了过多或过长的权限。");
+        if (manifest.Capabilities.Count > 20 || manifest.Capabilities.Any(x => x.Length > 80))
+            throw new InvalidDataException("插件声明了过多或过长的能力。");
     }
+
+    public async Task<bool> IsCapabilityEnabledAsync(string capability) =>
+        (await GetInstalledAsync()).Any(x => x.IsEnabled &&
+            x.Manifest.Capabilities.Contains(capability, StringComparer.OrdinalIgnoreCase));
 
     private static bool IsValidId(string? id) => !string.IsNullOrWhiteSpace(id) && IdPattern().IsMatch(id);
 
