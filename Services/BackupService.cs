@@ -51,7 +51,7 @@ public sealed class BackupService
                 {
                     format = "NativeTavernBackup",
                     version = 1,
-                    applicationVersion = App.DisplayVersion,
+                    applicationVersion = Helpers.AppVersion.DisplayVersion,
                     createdAt = DateTimeOffset.UtcNow
                 }, ManifestJsonOptions));
 

@@ -4,7 +4,7 @@
         xmlns:local="clr-namespace:NativeTavern"
         Title="NativeTavern" Icon="/NativeTavern;component/Assets/NativeTavern.png" Height="820" Width="1280" MinHeight="640" MinWidth="960"
         WindowStartupLocation="CenterScreen" Background="{StaticResource WindowBrush}" Opacity="0"
-        FontFamily="Microsoft YaHei UI, Segoe UI Variable Text, Segoe UI" AllowDrop="True" Drop="Window_OnDrop">
+        UseLayoutRounding="True" TextOptions.TextFormattingMode="Display" FontFamily="Segoe UI Variable Text, Microsoft YaHei UI, Segoe UI" AllowDrop="True" Drop="Window_OnDrop">
     <Grid x:Name="RootLayout" RenderTransformOrigin="0.5,0.5">
         <Grid.RenderTransform>
             <TransformGroup>
@@ -14,13 +14,11 @@
         </Grid.RenderTransform>
         <Grid.ColumnDefinitions><ColumnDefinition Width="250" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
         <Border Grid.Column="0" Background="{StaticResource SidebarBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,1,0">
-            <DockPanel Margin="10,12">
+            <DockPanel Margin="14,18">
                 <StackPanel DockPanel.Dock="Top">
                     <Grid Margin="8,4,8,16">
                         <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                        <Border Width="30" Height="30" CornerRadius="9" Background="{StaticResource AccentBrush}">
-                            <TextBlock Text="N" Foreground="White" FontSize="15" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                        </Border>
+                        <Image Width="30" Height="30" Source="{StaticResource BrandIcon}" Stretch="Uniform" AutomationProperties.Name="NativeTavern" />
                         <StackPanel Grid.Column="1" Margin="10,0,0,0" VerticalAlignment="Center">
                             <TextBlock Text="NativeTavern" FontSize="15" FontWeight="SemiBold" />
                             <TextBlock Text="Local AI workspace" FontSize="10" Foreground="{StaticResource SubtleTextBrush}" />

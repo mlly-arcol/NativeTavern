@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using System.Windows;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -384,7 +384,13 @@ public partial class ChatViewModel(
     [RelayCommand(CanExecute = nameof(CanCreateChat))]
     private async Task NewChatAsync()
     {
-        var session = await chatService.CreateSessionAsync();
+        // Reuse the current empty conversation, preserving any unsent draft.
+        // Otherwise reuse an empty ordinary session from the saved conversation list.
+        if (_session is { CharacterId: null, IsGroupChat: false, ParentSessionId: null }
+            && Messages.Count == 0)
+            return;
+
+        var session = await chatService.GetOrCreateEmptySessionAsync();
         await RefreshSessionsAsync(session.Id);
         await LoadSessionAsync(session);
         ErrorMessage = null;

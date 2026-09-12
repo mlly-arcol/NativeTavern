@@ -1,4 +1,4 @@
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using NativeTavern.Data.Repositories;
 using NativeTavern.Helpers;
 using NativeTavern.Models;
@@ -27,6 +27,9 @@ public sealed class ChatService(
     }
 
     public Task<IReadOnlyList<ChatSession>> GetSessionsAsync() => sessionRepository.GetAllAsync();
+
+    public async Task<ChatSession> GetOrCreateEmptySessionAsync() =>
+        await sessionRepository.FindEmptyOrdinaryAsync() ?? await CreateSessionAsync();
 
     public Task<ChatSession?> GetSessionAsync(long id) => sessionRepository.GetAsync(id);
 

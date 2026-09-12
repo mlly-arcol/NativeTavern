@@ -1,4 +1,4 @@
-using Microsoft.Data.Sqlite;
+﻿using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Logging.Abstractions;
 using NativeTavern.Data;
 using NativeTavern.Data.Repositories;
@@ -12,6 +12,34 @@ namespace NativeTavern.Tests;
 
 public sealed class ChatServiceTests
 {
+    [Fact]
+    public async Task NewChatReusesEmptySessionAndCreatesOnlyAfterItHasMessages()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), "NativeTavernEmptyChat-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        try
+        {
+            var (service, messages) = await CreateServiceAsync(Path.Combine(directory, "chat.db"), new FailingProvider());
+            var empty = await service.CreateSessionAsync();
+            var other = await service.CreateSessionAsync();
+            await messages.AddAsync(new ChatMessage { ChatSessionId = other.Id, Role = ChatRole.User, Content = "hello", CreatedAt = DateTimeOffset.UtcNow });
+            var reused = await service.GetOrCreateEmptySessionAsync();
+            Assert.Equal(empty.Id, reused.Id);
+            Assert.Equal(2, (await service.GetSessionsAsync()).Count);
+            await messages.AddAsync(new ChatMessage { ChatSessionId = empty.Id, Role = ChatRole.User, Content = "started", CreatedAt = DateTimeOffset.UtcNow });
+            var created = await service.GetOrCreateEmptySessionAsync();
+            Assert.NotEqual(empty.Id, created.Id);
+            Assert.NotEqual(other.Id, created.Id);
+            Assert.Equal(created.Id, (await service.GetOrCreateEmptySessionAsync()).Id);
+            Assert.Equal(3, (await service.GetSessionsAsync()).Count);
+        }
+        finally
+        {
+            SqliteConnection.ClearAllPools();
+            Directory.Delete(directory, true);
+        }
+    }
+
     [Fact]
     public async Task DatabaseInitializerMigratesBranchColumns()
     {

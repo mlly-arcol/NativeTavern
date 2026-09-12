@@ -2,17 +2,25 @@ namespace NativeTavern.Helpers;
 
 public static class AppPaths
 {
-    public static string Root { get; } = Path.Combine(ResolveApplicationDirectory(), "UserData");
-    public static string DataDirectory { get; } = Path.Combine(Root, "Data");
-    public static string LogsDirectory { get; } = Path.Combine(Root, "Logs");
-    public static string CacheDirectory { get; } = Path.Combine(Root, "Cache");
-    public static string AvatarsDirectory { get; } = Path.Combine(Root, "Avatars");
-    public static string AttachmentsDirectory { get; } = Path.Combine(Root, "Attachments");
-    public static string DocumentsDirectory { get; } = Path.Combine(Root, "Documents");
-    public static string PluginsDirectory { get; } = Path.Combine(Root, "Plugins");
-    public static string PluginDataDirectory { get; } = Path.Combine(Root, "PluginData");
-    public static string DatabaseFile { get; } = Path.Combine(DataDirectory, "NativeTavern.db");
-    public static string LogFile { get; } = Path.Combine(LogsDirectory, "NativeTavern.log");
+    private static string ResolveDefaultRoot() => Path.Combine(ResolveApplicationDirectory(), "UserData");
+
+    public static string Root { get; private set; } = ResolveDefaultRoot();
+    public static string DataDirectory => Path.Combine(Root, "Data");
+    public static string LogsDirectory => Path.Combine(Root, "Logs");
+    public static string CacheDirectory => Path.Combine(Root, "Cache");
+    public static string AvatarsDirectory => Path.Combine(Root, "Avatars");
+    public static string AttachmentsDirectory => Path.Combine(Root, "Attachments");
+    public static string DocumentsDirectory => Path.Combine(Root, "Documents");
+    public static string PluginsDirectory => Path.Combine(Root, "Plugins");
+    public static string PluginDataDirectory => Path.Combine(Root, "PluginData");
+    public static string DatabaseFile => Path.Combine(DataDirectory, "NativeTavern.db");
+    public static string LogFile => Path.Combine(LogsDirectory, "NativeTavern.log");
+
+    // Lets non-desktop hosts (e.g. the MAUI Android app) redirect all managed data
+    // to their own storage. Must be called before any path is read; the desktop
+    // app never calls this and keeps the default layout.
+    public static void UseRoot(string root) =>
+        Root = string.IsNullOrWhiteSpace(root) ? ResolveDefaultRoot() : Path.GetFullPath(root);
 
     private static string ResolveApplicationDirectory()
     {

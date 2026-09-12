@@ -18,14 +18,15 @@ namespace NativeTavern;
 /// </summary>
 public partial class App : Application
 {
-    public static string DisplayVersion =>
-        $"v{typeof(App).Assembly.GetName().Version?.ToString(3) ?? "0.0.0"}";
+    public static string DisplayVersion => Helpers.AppVersion.DisplayVersion;
 
     private ServiceProvider? _services;
 
     protected override async void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+        ShutdownMode = ShutdownMode.OnExplicitShutdown;
+        Helpers.AppVersion.Use(typeof(App).Assembly.GetName().Version ?? new Version());
         AppPaths.EnsureCreated();
         var services = new ServiceCollection();
         ConfigureServices(services);
@@ -43,9 +44,17 @@ public partial class App : Application
             await _services.GetRequiredService<DatabaseInitializer>().InitializeAsync();
             var storedSettings = await _services.GetRequiredService<SettingsService>().LoadAsync();
             _services.GetRequiredService<LocalizationService>().SetLanguage(storedSettings.LanguageCode);
+            var login = new Views.LoginWindow();
+            if (login.ShowDialog() != true)
+            {
+                Shutdown();
+                return;
+            }
             var viewModel = _services.GetRequiredService<MainViewModel>();
             await viewModel.InitializeAsync();
             var window = _services.GetRequiredService<MainWindow>();
+            MainWindow = window;
+            ShutdownMode = ShutdownMode.OnMainWindowClose;
             _services.GetRequiredService<TrayService>().Initialize(() =>
             {
                 window.Show(); window.WindowState = WindowState.Normal; window.Activate();

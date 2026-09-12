@@ -307,7 +307,7 @@ public sealed partial class PluginService
         {
             if (!Version.TryParse(manifest.MinimumAppVersion, out var minimumVersion))
                 throw new InvalidDataException("最低应用版本格式无效。");
-            var applicationVersion = typeof(App).Assembly.GetName().Version ?? new Version();
+            var applicationVersion = Helpers.AppVersion.Current;
             if (minimumVersion > applicationVersion)
                 throw new InvalidDataException($"此插件需要 NativeTavern {minimumVersion} 或更高版本。");
         }

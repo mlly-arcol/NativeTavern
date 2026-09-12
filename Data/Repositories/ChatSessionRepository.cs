@@ -1,4 +1,4 @@
-using Dapper;
+﻿using Dapper;
 using NativeTavern.Models;
 
 namespace NativeTavern.Data.Repositories;
@@ -29,6 +29,17 @@ public sealed class ChatSessionRepository(DatabaseConnectionFactory connectionFa
         var rows = await connection.QueryAsync<SessionRow>(
             "SELECT * FROM ChatSessions ORDER BY UpdatedAt DESC");
         return rows.Select(x => x.ToModel()).ToList();
+    }
+
+    public async Task<ChatSession?> FindEmptyOrdinaryAsync()
+    {
+        await using var connection = connectionFactory.CreateConnection();
+        var row = await connection.QuerySingleOrDefaultAsync<SessionRow>(
+            "SELECT s.* FROM ChatSessions s " +
+            "WHERE s.CharacterId IS NULL AND s.IsGroupChat=0 AND s.ParentSessionId IS NULL " +
+            "AND NOT EXISTS (SELECT 1 FROM ChatMessages m WHERE m.ChatSessionId=s.Id) " +
+            "ORDER BY s.UpdatedAt DESC, s.Id DESC LIMIT 1");
+        return row?.ToModel();
     }
 
     public async Task UpdateAsync(ChatSession session)

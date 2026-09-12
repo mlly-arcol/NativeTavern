@@ -41,21 +41,21 @@
     </Grid>
    </Border>
    <DataTemplate.Triggers><DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=ListBoxItem}}" Value="True">
-    <Setter TargetName="CharacterCard" Property="Background" Value="#F3F6FA"/><Setter TargetName="CharacterCard" Property="BorderBrush" Value="#70A4D6"/>
+    <Setter TargetName="CharacterCard" Property="Background" Value="#EEF0FD"/><Setter TargetName="CharacterCard" Property="BorderBrush" Value="{StaticResource AccentBrush}"/>
    </DataTrigger></DataTemplate.Triggers>
   </DataTemplate>
  </UserControl.Resources>
- <Grid Margin="28">
+ <Grid Margin="30,26,30,22">
   <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
   <DockPanel Margin="0,0,0,18">
    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
     <Button Content="Import Card" Click="Import_OnClick"/>
     <Button Content="+ New Character" Command="{Binding NewCharacterCommand}" Style="{StaticResource PrimaryButtonStyle}"/>
    </StackPanel>
-   <StackPanel><TextBlock Text="Characters" FontSize="28" FontWeight="SemiBold"/><TextBlock Text="Create, import and manage character cards" Foreground="{StaticResource MutedTextBrush}" Margin="0,5,0,0"/></StackPanel>
+   <StackPanel><TextBlock Text="Characters" Style="{StaticResource PageTitleStyle}"/><TextBlock Text="Create, import and manage character cards" Foreground="{StaticResource MutedTextBrush}" Margin="0,5,0,0"/></StackPanel>
   </DockPanel>
   <Grid Grid.Row="1">
-   <Grid.ColumnDefinitions><ColumnDefinition Width="360"/><ColumnDefinition Width="10"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+   <Grid.ColumnDefinitions><ColumnDefinition Width="280"/><ColumnDefinition Width="18"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
    <Border Grid.Column="0" Style="{StaticResource SurfaceBorderStyle}" Padding="14">
     <Grid>
      <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>

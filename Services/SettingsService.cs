@@ -41,7 +41,7 @@ public sealed class SettingsService(SettingsRepository repository, ISecretProtec
     public async Task SaveLanguageAsync(string languageCode)
     {
         var settings = await LoadAsync();
-        settings.LanguageCode = LocalizationService.Normalize(languageCode);
+        settings.LanguageCode = Helpers.LanguageCodes.Normalize(languageCode);
         await SaveAsync(settings, apiKey: null);
     }
 }

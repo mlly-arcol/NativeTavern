@@ -13,12 +13,12 @@
   </Style>
  </UserControl.Resources>
  <Grid Background="{StaticResource WindowBrush}">
-  <Grid.RowDefinitions><RowDefinition Height="64"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+  <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
 
   <!-- Compact conversation header -->
-  <Border BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,0,1" Padding="22,0">
+  <Border BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,0,1" Padding="24,16" Background="{StaticResource PanelBrush}">
    <Grid>
-    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
     <StackPanel VerticalAlignment="Center">
      <StackPanel Orientation="Horizontal">
       <TextBlock Text="{Binding SessionTitle}" FontSize="16" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" MaxWidth="430"/>
@@ -38,7 +38,7 @@
               Visibility="{Binding IsBranch, Converter={StaticResource BoolToVisibility}}"/>
      </StackPanel>
     </StackPanel>
-     <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+     <WrapPanel Grid.Row="1" VerticalAlignment="Center" Margin="0,12,0,0">
       <Button Content="成员" Click="EditGroupChat_OnClick" Margin="0,0,8,0" ToolTip="管理群聊成员"
               Visibility="{Binding IsGroupChat, Converter={StaticResource BoolToVisibility}}"/>
       <Button Content="下一位 ▾" Click="NextSpeaker_OnClick" Margin="0,0,8,0" ToolTip="自动选择或指定下一位发言角色"
@@ -49,7 +49,7 @@
      <Button Content="⇩" Style="{StaticResource RoundIconButtonStyle}" Click="ExportChat_OnClick" Margin="0,0,8,0" ToolTip="Export conversation" AutomationProperties.Name="Export conversation"/>
      <Button Content="＋" Style="{StaticResource RoundIconButtonStyle}" Command="{Binding NewChatCommand}" Margin="0,0,8,0" ToolTip="New chat" AutomationProperties.Name="New conversation"/>
      <Button Content="⋯" Style="{StaticResource RoundIconButtonStyle}" Click="DeleteChat_OnClick" ToolTip="Delete conversation" AutomationProperties.Name="Delete conversation"/>
-    </StackPanel>
+    </WrapPanel>
    </Grid>
   </Border>
 
@@ -60,9 +60,7 @@
      <Style TargetType="Grid"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding Messages.Count}" Value="0"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style>
     </Grid.Style>
     <StackPanel HorizontalAlignment="Center">
-     <Border Width="48" Height="48" CornerRadius="16" Background="{StaticResource AccentBrush}" HorizontalAlignment="Center" Margin="0,0,0,18">
-      <TextBlock Text="N" Foreground="White" FontSize="22" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-     </Border>
+     <Image Width="48" Height="48" Source="{StaticResource BrandIcon}" Stretch="Uniform" HorizontalAlignment="Center" Margin="0,0,0,18" AutomationProperties.Name="NativeTavern"/>
      <TextBlock Text="今天想聊些什么？" FontSize="25" FontWeight="SemiBold" HorizontalAlignment="Center"/>
      <TextBlock Text="选择角色或直接输入消息，开始一段新的对话" FontSize="13" Foreground="{StaticResource MutedTextBrush}" HorizontalAlignment="Center" Margin="0,8,0,0"/>
     </StackPanel>
@@ -104,11 +102,12 @@
         <Grid.ColumnDefinitions><ColumnDefinition Width="52"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
         <StackPanel x:Name="Avatar" Width="44" VerticalAlignment="Top">
          <Grid Width="44" Height="44">
-          <Ellipse x:Name="AvatarBackground" Fill="{StaticResource AccentBrush}"/>
+          <Ellipse x:Name="AvatarBackground" Fill="Transparent"/>
           <Ellipse x:Name="CharacterAvatar" Visibility="{Binding HasAssistantAvatar, Converter={StaticResource BoolToVisibility}}">
            <Ellipse.Fill><ImageBrush ImageSource="{Binding AssistantAvatarPath}" Stretch="UniformToFill"/></Ellipse.Fill>
           </Ellipse>
-          <TextBlock x:Name="AvatarLetter" Text="N" Foreground="White" FontWeight="Bold" FontSize="15" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+          <Image x:Name="AssistantBrandIcon" Source="{StaticResource BrandIcon}" Stretch="Uniform" AutomationProperties.Name="NativeTavern"/>
+          <TextBlock x:Name="AvatarLetter" Visibility="Collapsed" Text="Y" Foreground="White" FontWeight="Bold" FontSize="15" HorizontalAlignment="Center" VerticalAlignment="Center"/>
          </Grid>
          <Button x:Name="CharacterStatusButton" Content="状态" Tag="{Binding}" Click="CharacterStatus_OnClick"
                  Padding="3,2" Margin="0,5,0,0" FontSize="10"
@@ -197,12 +196,13 @@
       </Border>
       <DataTemplate.Triggers>
        <DataTrigger Binding="{Binding HasAssistantAvatar}" Value="True">
-        <Setter TargetName="AvatarLetter" Property="Visibility" Value="Collapsed"/>
+        <Setter TargetName="AssistantBrandIcon" Property="Visibility" Value="Collapsed"/>
        </DataTrigger>
        <DataTrigger Binding="{Binding Role}" Value="{x:Static models:ChatRole.User}">
        <Setter TargetName="AvatarBackground" Property="Fill" Value="#D8DADF"/>
         <Setter TargetName="AvatarLetter" Property="Foreground" Value="{StaticResource TextBrush}"/>
-        <Setter TargetName="AvatarLetter" Property="Text" Value="Y"/>
+        <Setter TargetName="AssistantBrandIcon" Property="Visibility" Value="Collapsed"/>
+        <Setter TargetName="AvatarLetter" Property="Visibility" Value="Visible"/>
        </DataTrigger>
       </DataTemplate.Triggers>
      </DataTemplate>
@@ -243,8 +243,8 @@
       </StackPanel>
      </Border>
     </StackPanel>
-    <Border Grid.Row="2" Background="White" BorderBrush="#C9CDD3" BorderThickness="1" CornerRadius="22" Padding="12,9">
-     <Border.Effect><DropShadowEffect Color="#000000" BlurRadius="18" ShadowDepth="4" Opacity="0.12"/></Border.Effect>
+    <Border Grid.Row="2" Background="White" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="22" Padding="12,9">
+     <Border.Effect><DropShadowEffect Color="#525BD4" BlurRadius="22" ShadowDepth="4" Opacity="0.10"/></Border.Effect>
      <Grid>
       <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
       <ItemsControl ItemsSource="{Binding PendingImagePaths}" Margin="2,0,0,7">
