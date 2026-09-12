@@ -87,7 +87,8 @@ public static class AppPaths
         {
             var target = Path.Combine(destination, Path.GetRelativePath(source, file));
             Directory.CreateDirectory(Path.GetDirectoryName(target)!);
-            File.Copy(file, target, false);
+            // Overwrite so a previously interrupted migration cannot crash the next startup.
+            File.Copy(file, target, true);
         }
     }
 }

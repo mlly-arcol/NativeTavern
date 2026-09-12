@@ -11,11 +11,13 @@ public sealed class DatabaseConnectionFactory
 
     public DatabaseConnectionFactory(string databaseFile)
     {
+        // Private cache per Microsoft.Data.Sqlite guidance: shared cache can deadlock
+        // (SQLITE_LOCKED) when streaming requests, suggestions and UI hit the database
+        // through separate connections at the same time.
         _connectionString = new SqliteConnectionStringBuilder
         {
             DataSource = databaseFile,
             Mode = SqliteOpenMode.ReadWriteCreate,
-            Cache = SqliteCacheMode.Shared,
             ForeignKeys = true
         }.ToString();
     }

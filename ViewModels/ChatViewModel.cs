@@ -290,6 +290,7 @@ public partial class ChatViewModel(
                 await RefreshReplySuggestionsAsync(cancellation.Token);
                 await UpdateCharacterStatusAsync(assistantViewModel.Model, cancellation.Token);
             }
+            SessionTitle = _session.Title;
             await RefreshSessionsAsync(_session.Id);
             await RefreshTokenEstimateAsync();
         }
@@ -766,7 +767,11 @@ public partial class ChatViewModel(
             await characterStatusService.UpdateAsync(_session, id, message.Id, cancellationToken);
     }
 
-    private void OnPluginsChanged() => _ = Application.Current.Dispatcher.InvokeAsync(RefreshCharacterStatusPluginAsync);
+    private void OnPluginsChanged()
+    {
+        if (Application.Current is null) return;
+        _ = Application.Current.Dispatcher.InvokeAsync(RefreshCharacterStatusPluginAsync);
+    }
 
     private async Task<int> GetTokenEstimateAsync(ChatSession session)
     {

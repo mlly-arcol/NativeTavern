@@ -257,14 +257,17 @@ public sealed class ChatService(
             Content = string.Empty, CreatedAt = DateTimeOffset.UtcNow
         };
         await messageRepository.AddAsync(assistant);
-        await onStarted(user, assistant);
 
-        if (history.Count == 1 && !session.IsGroupChat)
+        // Rename before onStarted so the chat header immediately shows the new title;
+        // an image-only first message has no text and must not blank the title.
+        if (history.Count == 1 && !session.IsGroupChat && !string.IsNullOrWhiteSpace(user.Content))
         {
             session.Title = user.Content.Length > 32 ? user.Content[..32] + "…" : user.Content;
             session.UpdatedAt = now;
             await sessionRepository.UpdateAsync(session);
         }
+
+        await onStarted(user, assistant);
 
         var request = await CreateRequestAsync(session, history, settings, assistant.SpeakerCharacterId);
         var presentation = new ProgressiveParagraphBuffer();

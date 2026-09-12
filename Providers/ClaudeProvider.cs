@@ -49,7 +49,8 @@ public sealed class ClaudeProvider(
         var resolved = await settingsService.LoadResolvedAsync();
         ValidateBaseUrl(resolved.Settings.BaseUrl);
         var system = string.Join("\n\n", request.Messages.Where(x => x.Role == "system").Select(x => x.Content));
-        var messages = NormalizeMessages(request.Messages.Where(x => x.Role != "system"));
+        var messages = NormalizeMessages(request.Messages.Where(x => x.Role != "system"))
+            .Select(x => (object)new { role = x.Role, content = x.Content }).ToList();
         var payload = new
         {
             model = request.Model,
@@ -106,7 +107,10 @@ public sealed class ClaudeProvider(
         catch (HttpRequestException ex) { throw new ProviderException("无法连接 Claude API。", ex); }
     }
 
-    private static IReadOnlyList<object> NormalizeMessages(IEnumerable<ChatCompletionMessage> source)
+    // Anthropic Messages API requires the first message to use the "user" role; a
+    // character greeting would otherwise make every request fail with HTTP 400.
+    internal static IReadOnlyList<(string Role, object Content)> NormalizeMessages(
+        IEnumerable<ChatCompletionMessage> source)
     {
         var result = new List<(string Role, object Content)>();
         foreach (var message in source)
@@ -117,7 +121,9 @@ public sealed class ClaudeProvider(
                 result[^1] = (role, previous + "\n\n" + current);
             else result.Add((role, content));
         }
-        return result.Select(x => (object)new { role = x.Role, content = x.Content }).ToList();
+        if (result.Count > 0 && result[0].Role == "assistant")
+            result.Insert(0, ("user", "[Start a new chat]"));
+        return result;
     }
 
     private static object BuildContent(ChatCompletionMessage message)
