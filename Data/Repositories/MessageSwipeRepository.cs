@@ -14,6 +14,29 @@ public sealed class MessageSwipeRepository(DatabaseConnectionFactory connectionF
         return rows.Select(x => x.ToModel()).ToList();
     }
 
+    /// Every assistant reply needs a swipe 0 holding its own text, and filling those in one message at
+    /// a time is what made opening a long conversation crawl.
+    public async Task BackfillFirstSwipesAsync(long sessionId)
+    {
+        await using var connection = connectionFactory.CreateConnection();
+        await connection.ExecuteAsync(
+            "INSERT INTO MessageSwipes(ChatMessageId,SwipeIndex,Content,CreatedAt) " +
+            "SELECT m.Id,0,m.Content,m.CreatedAt FROM ChatMessages m " +
+            "WHERE m.ChatSessionId=@sessionId AND m.Role='Assistant' AND m.Content<>'' " +
+            "AND NOT EXISTS (SELECT 1 FROM MessageSwipes s WHERE s.ChatMessageId=m.Id)",
+            new { sessionId });
+    }
+
+    public async Task<IReadOnlyDictionary<long, int>> GetCountsBySessionAsync(long sessionId)
+    {
+        await using var connection = connectionFactory.CreateConnection();
+        var rows = await connection.QueryAsync<CountRow>(
+            "SELECT ChatMessageId, COUNT(*) AS Total FROM MessageSwipes " +
+            "WHERE ChatMessageId IN (SELECT Id FROM ChatMessages WHERE ChatSessionId=@sessionId) " +
+            "GROUP BY ChatMessageId", new { sessionId });
+        return rows.ToDictionary(x => x.ChatMessageId, x => x.Total);
+    }
+
     public async Task AddAsync(MessageSwipe swipe)
     {
         await using var connection = connectionFactory.CreateConnection();
@@ -39,6 +62,12 @@ public sealed class MessageSwipeRepository(DatabaseConnectionFactory connectionF
             "INSERT INTO MessageSwipes(ChatMessageId,SwipeIndex,Content,CreatedAt) VALUES(@messageId,0,@content,@createdAt)",
             new { messageId, content, createdAt = DateTimeOffset.UtcNow.ToString("O") }, transaction);
         await transaction.CommitAsync();
+    }
+
+    private sealed class CountRow
+    {
+        public long ChatMessageId { get; init; }
+        public int Total { get; init; }
     }
 
     private sealed class SwipeRow

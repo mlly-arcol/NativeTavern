@@ -15,6 +15,7 @@ public sealed class ChatService(
     ConversationSummaryService summaryService,
     CharacterRepository characterRepository,
     PromptService promptService,
+    RegexScriptService regexScripts,
     SettingsService settingsService,
     ILLMProvider provider,
     ILogger<ChatService> logger)
@@ -27,6 +28,10 @@ public sealed class ChatService(
     }
 
     public Task<IReadOnlyList<ChatSession>> GetSessionsAsync() => sessionRepository.GetAllAsync();
+
+    /// <summary>Case-insensitive substring search across every conversation, newest match first.</summary>
+    public Task<IReadOnlyList<MessageSearchResult>> SearchMessagesAsync(string query, int limit = 50) =>
+        messageRepository.SearchAsync(query, limit);
 
     public async Task<ChatSession> GetOrCreateEmptySessionAsync() =>
         await sessionRepository.FindEmptyOrdinaryAsync() ?? await CreateSessionAsync();
@@ -48,6 +53,29 @@ public sealed class ChatService(
         session.UpdatedAt = DateTimeOffset.UtcNow;
         await sessionRepository.UpdateAsync(session);
     }
+
+    /// <summary>The recap goes into every later request, so a hand written one is capped by the service.</summary>
+    public Task SaveStorySummaryAsync(ChatSession session, string summary) => summaryService.SaveManualAsync(session, summary);
+    public Task RebuildStorySummaryAsync(ChatSession session) => summaryService.RebuildAsync(session);
+
+    public Task ClearStorySummaryAsync(ChatSession session) => summaryService.ClearAsync(session);
+
+    /// <summary>Only the flag moves, so pinning keeps the conversation's own ordering stamp.</summary>
+    public async Task SetSessionPinnedAsync(ChatSession session, bool pinned)
+    {
+        session.IsPinned = pinned;
+        await sessionRepository.SetPinnedAsync(session.Id, pinned);
+    }
+
+    public async Task SetSessionGroupAsync(ChatSession session, string groupName)
+    {
+        groupName = groupName.Trim();
+        if (groupName.Length > 40) throw new InvalidOperationException("对话分组名称不能超过 40 个字符。");
+        session.GroupName = groupName;
+        await sessionRepository.SetGroupAsync(session.Id, groupName);
+    }
+
+    public Task<IReadOnlyList<string>> GetSessionGroupsAsync() => sessionRepository.GetGroupNamesAsync();
 
     public async Task<ChatSession> BranchSessionAsync(ChatSession source, long throughMessageId)
     {
@@ -174,6 +202,19 @@ public sealed class ChatService(
     public Task<IReadOnlyList<ChatMessage>> GetMessagesAsync(long sessionId) =>
         messageRepository.GetBySessionAsync(sessionId);
 
+    /// Reads a conversation the way the chat page needs it: messages, swipe counts and attachments in
+    /// four statements, so a long history does not turn opening it into hundreds of queries.
+    public async Task<SessionBundle> GetSessionBundleAsync(long sessionId)
+    {
+        await swipeRepository.BackfillFirstSwipesAsync(sessionId);
+        var messages = await messageRepository.GetBySessionAsync(sessionId);
+        var swipeCounts = await swipeRepository.GetCountsBySessionAsync(sessionId);
+        var attachments = (await attachmentRepository.GetBySessionAsync(sessionId))
+            .GroupBy(x => x.ChatMessageId)
+            .ToDictionary(x => x.Key, x => (IReadOnlyList<ChatAttachment>)x.ToList());
+        return new SessionBundle(messages, swipeCounts, attachments);
+    }
+
     public Task<Character?> GetCharacterAsync(long characterId) => characterRepository.GetAsync(characterId);
 
     public Task<IReadOnlyList<ChatAttachment>> GetAttachmentsAsync(long messageId) => attachmentRepository.GetByMessageAsync(messageId);
@@ -224,6 +265,13 @@ public sealed class ChatService(
         await messageRepository.UpdateAsync(message);
     }
 
+    // Only the flag moves, so the content, swipes and UpdatedAt stamp stay untouched.
+    public async Task SetMessagePinnedAsync(ChatMessage message, bool pinned)
+    {
+        message.IsPinned = pinned;
+        await messageRepository.SetPinnedAsync(message.Id, pinned);
+    }
+
     public async Task<(ChatMessage Message, int SwipeCount)> SelectSwipeAsync(ChatMessage message, int targetIndex)
     {
         var swipes = await EnsureSwipeHistoryAsync(message);
@@ -247,7 +295,7 @@ public sealed class ChatService(
         var user = new ChatMessage
         {
             ChatSessionId = session.Id, Role = ChatRole.User,
-            Content = input.Trim(), CreatedAt = now
+            Content = await regexScripts.ApplyAsync(input.Trim(), RegexScriptTarget.UserInput), CreatedAt = now
         };
         await messageRepository.AddAsync(user);
         if (imagePaths.Count > 0) await attachmentService.SaveImagesAsync(user.Id, imagePaths);
@@ -281,7 +329,7 @@ public sealed class ChatService(
                 assistant.Content += chunk;
                 foreach (var paragraph in presentation.Append(chunk))
                 {
-                    await onChunk(assistant, paragraph);
+                    await onChunk(assistant, await regexScripts.ApplyAsync(paragraph, RegexScriptTarget.AssistantOutput));
                     await Task.Delay(35);
                 }
             }
@@ -293,8 +341,9 @@ public sealed class ChatService(
         finally
         {
             foreach (var paragraph in presentation.Flush())
-                await onChunk(assistant, paragraph);
+                await onChunk(assistant, await regexScripts.ApplyAsync(paragraph, RegexScriptTarget.AssistantOutput));
             assistant.UpdatedAt = DateTimeOffset.UtcNow;
+            assistant.Content = await regexScripts.ApplyAsync(assistant.Content, RegexScriptTarget.AssistantOutput);
             if (string.IsNullOrEmpty(assistant.Content))
             {
                 await messageRepository.DeleteAsync(assistant.Id);
@@ -356,7 +405,7 @@ public sealed class ChatService(
                 assistant.Content += chunk;
                 foreach (var paragraph in presentation.Append(chunk))
                 {
-                    await onChunk(assistant, paragraph);
+                    await onChunk(assistant, await regexScripts.ApplyAsync(paragraph, RegexScriptTarget.AssistantOutput));
                     await Task.Delay(35);
                 }
             }
@@ -368,8 +417,9 @@ public sealed class ChatService(
         finally
         {
             foreach (var paragraph in presentation.Flush())
-                await onChunk(assistant, paragraph);
+                await onChunk(assistant, await regexScripts.ApplyAsync(paragraph, RegexScriptTarget.AssistantOutput));
             assistant.UpdatedAt = DateTimeOffset.UtcNow;
+            assistant.Content = await regexScripts.ApplyAsync(assistant.Content, RegexScriptTarget.AssistantOutput);
             if (string.IsNullOrEmpty(assistant.Content))
             {
                 await messageRepository.DeleteAsync(assistant.Id);
@@ -419,7 +469,7 @@ public sealed class ChatService(
                 newContent += chunk;
                 foreach (var paragraph in presentation.Append(chunk))
                 {
-                    displayedContent += paragraph;
+                    displayedContent += await regexScripts.ApplyAsync(paragraph, RegexScriptTarget.AssistantOutput);
                     await onContentChanged(displayedContent);
                     await Task.Delay(35);
                 }
@@ -433,9 +483,10 @@ public sealed class ChatService(
         {
             foreach (var paragraph in presentation.Flush())
             {
-                displayedContent += paragraph;
+                displayedContent += await regexScripts.ApplyAsync(paragraph, RegexScriptTarget.AssistantOutput);
                 await onContentChanged(displayedContent);
             }
+            newContent = await regexScripts.ApplyAsync(newContent, RegexScriptTarget.AssistantOutput);
             if (!string.IsNullOrEmpty(newContent))
             {
                 var index = swipes.Count;
@@ -459,6 +510,95 @@ public sealed class ChatService(
         }
         return (target, swipes.Count + (string.IsNullOrEmpty(newContent) ? 0 : 1));
     }
+
+    /// Asks the model to carry on from where the last reply stopped. The text already written stays
+    /// where it is, so this grows the message instead of replacing it, and the shorter version is kept
+    /// as an earlier swipe.
+    public async Task<(ChatMessage Message, int SwipeCount)> ContinueAssistantAsync(
+        ChatSession session, ChatMessage target,
+        Func<string, Task> onContentChanged,
+        CancellationToken cancellationToken)
+    {
+        if (target.Role != ChatRole.Assistant)
+            throw new InvalidOperationException("只能续写助手的回复。");
+        if (string.IsNullOrWhiteSpace(target.Content))
+            throw new InvalidOperationException("这条回复还没有内容，请先重新生成。");
+
+        var settings = await LoadConfiguredSettingsAsync();
+        var allMessages = (await messageRepository.GetBySessionAsync(session.Id)).ToList();
+        var targetPosition = allMessages.FindIndex(x => x.Id == target.Id);
+        if (targetPosition < 0) throw new InvalidOperationException("消息不属于当前聊天。");
+
+        var swipes = await EnsureSwipeHistoryAsync(target);
+        var baseContent = target.Content;
+        var request = await CreateRequestAsync(
+            session, allMessages.Take(targetPosition + 1), settings, target.SpeakerCharacterId);
+        request = new ChatCompletionRequest
+        {
+            Model = request.Model,
+            Messages = [.. request.Messages, new ChatCompletionMessage { Role = "user", Content = ContinuationCue }],
+            Temperature = request.Temperature, TopP = request.TopP,
+            MaxTokens = request.MaxTokens, Stream = true
+        };
+
+        var addition = string.Empty;
+        var displayed = string.Empty;
+        var grew = false;
+        var presentation = new ProgressiveParagraphBuffer();
+        await onContentChanged(baseContent);
+        try
+        {
+            await foreach (var chunk in provider.StreamAsync(request, cancellationToken))
+            {
+                addition += chunk;
+                foreach (var paragraph in presentation.Append(chunk))
+                {
+                    displayed += await regexScripts.ApplyAsync(paragraph, RegexScriptTarget.AssistantOutput);
+                    await onContentChanged(baseContent + displayed);
+                    await Task.Delay(35);
+                }
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            logger.LogInformation("Continuation cancelled by user.");
+        }
+        finally
+        {
+            foreach (var paragraph in presentation.Flush())
+            {
+                displayed += await regexScripts.ApplyAsync(paragraph, RegexScriptTarget.AssistantOutput);
+                await onContentChanged(baseContent + displayed);
+            }
+            addition = await regexScripts.ApplyAsync(addition, RegexScriptTarget.AssistantOutput);
+            if (!string.IsNullOrWhiteSpace(addition))
+            {
+                var combined = baseContent + addition;
+                var index = swipes.Count;
+                await swipeRepository.AddAsync(new MessageSwipe
+                {
+                    ChatMessageId = target.Id, SwipeIndex = index,
+                    Content = combined, CreatedAt = DateTimeOffset.UtcNow
+                });
+                target.Content = combined;
+                target.CurrentSwipeIndex = index;
+                target.UpdatedAt = DateTimeOffset.UtcNow;
+                await messageRepository.UpdateAsync(target);
+                session.UpdatedAt = target.UpdatedAt.Value;
+                await sessionRepository.UpdateAsync(session);
+                grew = true;
+            }
+            else
+            {
+                target.Content = baseContent;
+                await onContentChanged(baseContent);
+            }
+        }
+        return (target, grew ? swipes.Count + 1 : swipes.Count);
+    }
+
+    private const string ContinuationCue =
+        "请从上一条回复停下的地方接着往下写，不要重复已经写出的内容，也不要重新开头，只输出后续部分。";
 
     public static IReadOnlyList<ChatCompletionMessage> BuildMessages(
         IEnumerable<ChatMessage> messages,

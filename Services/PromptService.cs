@@ -9,6 +9,11 @@ public sealed class PromptService(
     ChatSessionRepository sessionRepository,
     KnowledgeService knowledgeService)
 {
+    private const int MinimumKeptMessages = 2;
+    private const int DefaultReplyTokens = 1024;
+    private const int RequestOverheadTokens = 192;
+    private const int MessageOverheadTokens = 8;
+
     public async Task<PromptBuildResult> BuildAsync(
         ChatSession session,
         IEnumerable<ChatMessage> history,
@@ -76,6 +81,11 @@ public sealed class PromptService(
 
         var conversation = string.IsNullOrWhiteSpace(session.Summary) ? historyList : historyList.TakeLast(12).ToList();
         var speakerNames = groupMembers.ToDictionary(x => x.Id, x => x.Name);
+        var trimmedMessages = TrimHistoryToBudget(
+            conversation,
+            settings,
+            preset?.MaxTokens ?? settings.MaxTokens,
+            TokenEstimator.EstimateText(string.Join("\n\n", sections)));
         var messages = ChatService.BuildMessages(conversation, speakerNames).ToList();
         if (sections.Count > 0)
             messages.Insert(0, new ChatCompletionMessage { Role = "system", Content = string.Join("\n\n", sections) });
@@ -97,9 +107,40 @@ public sealed class PromptService(
             TopP = preset?.TopP ?? settings.TopP,
             MaxTokens = preset?.MaxTokens ?? settings.MaxTokens,
             ActivatedLoreEntries = activatedNames,
+            TrimmedMessages = trimmedMessages,
             EstimatedTokens = TokenEstimator.Estimate(messages)
         };
     }
+
+    /// <summary>
+    /// Oldest turns are dropped so a long roleplay does not bounce off the model's context window.
+    /// The newest turns always survive, even when the budget cannot cover them.
+    /// </summary>
+    internal static int TrimHistoryToBudget(
+        List<ChatMessage> history,
+        ProviderSettings settings,
+        int replyTokens,
+        int fixedTokens)
+    {
+        if (!settings.TrimHistoryToContext || settings.ContextLength <= 0 || history.Count <= MinimumKeptMessages)
+            return 0;
+        var available = settings.ContextLength
+                        - (replyTokens > 0 ? replyTokens : DefaultReplyTokens)
+                        - RequestOverheadTokens
+                        - fixedTokens;
+        var used = history.Sum(EstimateMessageTokens);
+        var dropped = 0;
+        while (used > available && history.Count - dropped > MinimumKeptMessages)
+        {
+            used -= EstimateMessageTokens(history[dropped]);
+            dropped++;
+        }
+        if (dropped > 0) history.RemoveRange(0, dropped);
+        return dropped;
+    }
+
+    private static int EstimateMessageTokens(ChatMessage message) =>
+        TokenEstimator.EstimateText(message.Content) + MessageOverheadTokens;
 
     public static IReadOnlyList<LoreEntry> ActivateLoreEntries(
         IEnumerable<LoreEntry> entries,

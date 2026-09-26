@@ -36,6 +36,29 @@ public partial class ChatMessageViewModel : ObservableObject
     public string AssistantAvatarPath => IsAssistant ? _assistantAvatarPath : string.Empty;
     public bool HasAssistantAvatar => IsAssistant;
     public long? CharacterId { get; }
+    public bool IsPinned
+    {
+        get => Model.IsPinned;
+        set
+        {
+            if (Model.IsPinned == value) return;
+            Model.IsPinned = value;
+            OnPropertyChanged(nameof(IsPinned));
+            OnPropertyChanged(nameof(PinnedGlyph));
+        }
+    }
+    public string PinnedGlyph => Model.IsPinned ? "★" : "☆";
+    // Without this a popup entry is announced as the view-model type name.
+    public string EntryLabel
+    {
+        get
+        {
+            var text = Content.Replace("\r", " ").Replace("\n", " ").Trim();
+            if (text.Length > 60) text = text[..60] + "…";
+            return $"{RoleLabel}: {text}";
+        }
+    }
+
     public bool HasCharacterStatusTarget => IsAssistant && CharacterId is not null;
     public bool IsWaitingForResponse => IsAssistant && IsStreaming && string.IsNullOrEmpty(Content);
     public string SwipeDisplay => IsAssistant && SwipeCount > 0
@@ -73,6 +96,7 @@ public partial class ChatMessageViewModel : ObservableObject
     {
         Model.Content = value;
         OnPropertyChanged(nameof(IsWaitingForResponse));
+        OnPropertyChanged(nameof(EntryLabel));
     }
     partial void OnIsStreamingChanged(bool value) => OnPropertyChanged(nameof(IsWaitingForResponse));
     partial void OnSwipeCountChanged(int value)

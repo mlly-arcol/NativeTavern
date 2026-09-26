@@ -100,10 +100,10 @@ public partial class CharactersView : UserControl
         var dialog = new SaveFileDialog
         {
             Title = "Export Character Card",
-            FileName = DataExportService.CreateSafeFileName(viewModel.SelectedCharacter.Name, "character") + ".json",
+            FileName = DataExportService.CreateSafeFileName(viewModel.SelectedCharacter.Name, "character"),
             DefaultExt = ".json",
             AddExtension = true,
-            Filter = "Character Card JSON (*.json)|*.json"
+            Filter = "Character Card JSON (*.json)|*.json|Character Card PNG (*.png)|*.png"
         };
         if (dialog.ShowDialog() == true) await viewModel.ExportSelectedAsync(dialog.FileName);
     }

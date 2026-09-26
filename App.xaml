@@ -29,6 +29,26 @@
         <SolidColorBrush x:Key="BorderBrush" Color="#DFE4EF" />
         <SolidColorBrush x:Key="DangerBrush" Color="#C0392B" />
 
+        <!-- Semantic palette: ThemeService mutates these in place to switch themes -->
+        <SolidColorBrush x:Key="OnAccentBrush" Color="#FFFFFF" />
+        <SolidColorBrush x:Key="MaskBrush" Color="#32000000" />
+        <SolidColorBrush x:Key="StrongBorderBrush" Color="#606060" />
+        <SolidColorBrush x:Key="NeutralBgBrush" Color="#F2F4F8" />
+        <SolidColorBrush x:Key="NeutralBorderBrush" Color="#DCDFE6" />
+        <SolidColorBrush x:Key="SuccessTextBrush" Color="#18864B" />
+        <SolidColorBrush x:Key="DangerTextBrush" Color="#B42318" />
+        <SolidColorBrush x:Key="DangerSolidBrush" Color="#C83C32" />
+        <SolidColorBrush x:Key="DangerStrongTextBrush" Color="#8D3028" />
+        <SolidColorBrush x:Key="DangerSoftBgBrush" Color="#FDF0EF" />
+        <SolidColorBrush x:Key="DangerSoftBorderBrush" Color="#F1C6C2" />
+        <SolidColorBrush x:Key="WarningTextBrush" Color="#765F18" />
+        <SolidColorBrush x:Key="WarningSoftBgBrush" Color="#FFF7D6" />
+        <SolidColorBrush x:Key="WarningSoftBorderBrush" Color="#F0D98A" />
+        <SolidColorBrush x:Key="AccentTintBgBrush" Color="#F3F3FD" />
+        <SolidColorBrush x:Key="AccentTintBorderBrush" Color="#DDD9F4" />
+        <SolidColorBrush x:Key="AccentTintTextBrush" Color="#514B96" />
+        <SolidColorBrush x:Key="AccentDeepTextBrush" Color="#29264F" />
+
         <Style TargetType="UserControl">
             <Setter Property="FontFamily" Value="Segoe UI Variable Text, Microsoft YaHei UI, Segoe UI" />
             <Setter Property="FontSize" Value="13" />
@@ -107,7 +127,7 @@
                             <Binding Path="Tag" RelativeSource="{RelativeSource Self}"/>
                         </MultiBinding>
                     </DataTrigger.Binding>
-                    <Setter Property="Background" Value="#E4E8FC"/>
+                    <Setter Property="Background" Value="{StaticResource AccentTintBgBrush}"/>
                     <Setter Property="Foreground" Value="{StaticResource AccentBrush}"/>
                     <Setter Property="FontWeight" Value="SemiBold"/>
                 </DataTrigger>
@@ -213,7 +233,7 @@
                                             </Grid>
                                         </Border>
                                         <ControlTemplate.Triggers>
-                                            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="ComboBorder" Property="BorderBrush" Value="#606060"/></Trigger>
+                                            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="ComboBorder" Property="BorderBrush" Value="{StaticResource StrongBorderBrush}"/></Trigger>
                                         </ControlTemplate.Triggers>
                                     </ControlTemplate>
                                 </ToggleButton.Template>
@@ -223,7 +243,7 @@
                                      IsReadOnly="{TemplateBinding IsReadOnly}"
                                      Text="{Binding Text, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
                             <Popup x:Name="PART_Popup" IsOpen="{TemplateBinding IsDropDownOpen}" Placement="Bottom" AllowsTransparency="True" Focusable="False" PopupAnimation="Fade">
-                                <Border Background="White" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="8" Margin="0,4,0,0" Padding="4" MinWidth="{Binding ActualWidth, RelativeSource={RelativeSource TemplatedParent}}">
+                                <Border Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="8" Margin="0,4,0,0" Padding="4" MinWidth="{Binding ActualWidth, RelativeSource={RelativeSource TemplatedParent}}">
                                     <ScrollViewer MaxHeight="320"><ItemsPresenter KeyboardNavigation.DirectionalNavigation="Contained"/></ScrollViewer>
                                 </Border>
                             </Popup>
@@ -247,7 +267,7 @@
                         <Border x:Name="OptionBorder" Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}"><ContentPresenter/></Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsHighlighted" Value="True"><Setter TargetName="OptionBorder" Property="Background" Value="{StaticResource HoverBrush}"/></Trigger>
-                            <Trigger Property="IsSelected" Value="True"><Setter TargetName="OptionBorder" Property="Background" Value="#E4E8FC"/></Trigger>
+                            <Trigger Property="IsSelected" Value="True"><Setter TargetName="OptionBorder" Property="Background" Value="{StaticResource AccentTintBgBrush}"/></Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
@@ -263,14 +283,14 @@
                     <ControlTemplate TargetType="CheckBox">
                         <Grid>
                             <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                            <Border x:Name="CheckBorder" Width="17" Height="17" CornerRadius="4" Background="White" BorderBrush="#B6BAC1" BorderThickness="1" VerticalAlignment="Center">
-                                <Path x:Name="CheckMark" Data="M 3 8 L 7 12 L 14 4" Stroke="White" StrokeThickness="2" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Visibility="Collapsed"/>
+                            <Border x:Name="CheckBorder" Width="17" Height="17" CornerRadius="4" Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource NeutralBorderBrush}" BorderThickness="1" VerticalAlignment="Center">
+                                <Path x:Name="CheckMark" Data="M 3 8 L 7 12 L 14 4" Stroke="{StaticResource PanelBrush}" StrokeThickness="2" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Visibility="Collapsed"/>
                             </Border>
                             <ContentPresenter Grid.Column="1" Margin="8,0,0,0" VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
                         </Grid>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsChecked" Value="True"><Setter TargetName="CheckBorder" Property="Background" Value="{StaticResource AccentBrush}"/><Setter TargetName="CheckBorder" Property="BorderBrush" Value="{StaticResource AccentBrush}"/><Setter TargetName="CheckMark" Property="Visibility" Value="Visible"/></Trigger>
-                            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="CheckBorder" Property="BorderBrush" Value="#6E737B"/></Trigger>
+                            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="CheckBorder" Property="BorderBrush" Value="{StaticResource SubtleTextBrush}"/></Trigger>
                             <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.45"/></Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>

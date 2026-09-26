@@ -22,6 +22,7 @@ public partial class SettingsViewModel(
         new(LocalizationService.Chinese, "中文"),
         new(LocalizationService.English, "English")
     ];
+    public IReadOnlyList<ThemeOption> Themes { get; private set; } = [];
     public IReadOnlyList<ProviderProfile> ProviderProfiles { get; } = ProviderProfile.All;
     public ObservableCollection<ModelInfo> AvailableModels { get; } = [];
     public ObservableCollection<DetectedProvider> DetectedServices { get; } = [];
@@ -29,6 +30,7 @@ public partial class SettingsViewModel(
 
     [ObservableProperty] private ProviderProfile? _selectedProvider;
     [ObservableProperty] private LanguageOption? _selectedLanguage;
+    [ObservableProperty] private ThemeOption? _selectedTheme;
     [ObservableProperty] private DetectedProvider? _selectedDetectedService;
     [ObservableProperty] private LocalModelFile? _selectedLocalModel;
     [ObservableProperty] private string _localModelDirectory = LocalModelService.DefaultModelDirectory;
@@ -40,6 +42,7 @@ public partial class SettingsViewModel(
     [ObservableProperty] private double _topP = 1.0;
     [ObservableProperty] private int _maxTokens = 1024;
     [ObservableProperty] private int _contextLength = 8192;
+    [ObservableProperty] private bool _trimHistoryToContext = true;
     [ObservableProperty] private bool _autoScanLocalModels = true;
     [ObservableProperty] private bool _includeCharacterContext;
     [ObservableProperty] private bool _includeKnowledgeContext;
@@ -48,6 +51,8 @@ public partial class SettingsViewModel(
     [ObservableProperty] private bool _isBusy;
     private bool _clearApiKey;
     private bool _initializing;
+    private bool _rebuildingThemes;
+    private bool _languageWatched;
 
     public event Action? Saved;
 
@@ -92,6 +97,8 @@ public partial class SettingsViewModel(
     {
         _initializing = true;
         var resolved = await settingsService.LoadResolvedAsync();
+        WatchLanguageChanges();
+        RefreshThemes(ThemeService.ToCode(ThemeService.ParseMode(resolved.Settings.ThemeMode)));
         SelectedLanguage = Languages.First(x => x.Code == LocalizationService.Normalize(resolved.Settings.LanguageCode));
         SelectedProvider = ProviderProfiles.FirstOrDefault(x => x.Id == resolved.Settings.ProviderId) ?? ProviderProfiles[0];
         BaseUrl = resolved.Settings.BaseUrl;
@@ -101,6 +108,7 @@ public partial class SettingsViewModel(
         TopP = resolved.Settings.TopP;
         MaxTokens = resolved.Settings.MaxTokens;
         ContextLength = resolved.Settings.ContextLength;
+        TrimHistoryToContext = resolved.Settings.TrimHistoryToContext;
         AutoScanLocalModels = resolved.Settings.AutoScanLocalModels;
         LocalModelDirectory = string.IsNullOrWhiteSpace(resolved.Settings.LocalModelDirectory)
             || string.Equals(resolved.Settings.LocalModelDirectory, LocalModelService.LegacyModelDirectory, StringComparison.OrdinalIgnoreCase)
@@ -302,6 +310,7 @@ public partial class SettingsViewModel(
         return new ProviderSettings
         {
             LanguageCode = SelectedLanguage?.Code ?? LocalizationService.Chinese,
+            ThemeMode = SelectedTheme?.Code ?? ThemeService.ToCode(AppThemeMode.System),
             ProviderId = SelectedProvider?.Id ?? "openai-compatible",
             BaseUrl = BaseUrl.Trim(),
             Model = Model.Trim(),
@@ -309,6 +318,7 @@ public partial class SettingsViewModel(
             TopP = TopP,
             MaxTokens = MaxTokens,
             ContextLength = ContextLength,
+            TrimHistoryToContext = TrimHistoryToContext,
             AutoScanLocalModels = AutoScanLocalModels,
             LocalModelDirectory = LocalModelDirectory.Trim(),
             LlamaCppPath = LlamaCppPath.Trim(),
@@ -349,6 +359,53 @@ public partial class SettingsViewModel(
         {
             logger.LogError(ex, "Failed to save interface language.");
             StatusMessage = localizationService.Text("语言设置保存失败，请查看日志。", "Failed to save language setting. Check the log.");
+        }
+    }
+
+    private void WatchLanguageChanges()
+    {
+        if (_languageWatched) return;
+        _languageWatched = true;
+        localizationService.LanguageChanged += () => RefreshThemes(SelectedTheme?.Code);
+    }
+
+    private void RefreshThemes(string? selectedCode)
+    {
+        _rebuildingThemes = true;
+        try
+        {
+            Themes = new List<ThemeOption>
+            {
+                new(ThemeService.ToCode(AppThemeMode.System), L("跟随系统外观", "Follow system appearance")),
+                new(ThemeService.ToCode(AppThemeMode.Light), L("浅色", "Light")),
+                new(ThemeService.ToCode(AppThemeMode.Dark), L("深色", "Dark")),
+            };
+            SelectedTheme = Themes.FirstOrDefault(x => x.Code == selectedCode) ?? Themes[0];
+        }
+        finally
+        {
+            _rebuildingThemes = false;
+        }
+        OnPropertyChanged(nameof(Themes));
+    }
+
+    partial void OnSelectedThemeChanged(ThemeOption? value)
+    {
+        if (_initializing || _rebuildingThemes || value is null) return;
+        ThemeService.Apply(value.Code);
+        _ = PersistThemeAsync(value.Code);
+    }
+
+    private async Task PersistThemeAsync(string themeCode)
+    {
+        try
+        {
+            await settingsService.SaveThemeModeAsync(themeCode);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to save theme setting.");
+            StatusMessage = L("外观设置保存失败，请查看日志。", "Failed to save appearance setting. Check the log.");
         }
     }
 

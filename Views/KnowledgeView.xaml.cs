@@ -11,6 +11,7 @@ public partial class KnowledgeView : UserControl
     private KnowledgeViewModel? ViewModel => DataContext as KnowledgeViewModel;
     private async void Import_OnClick(object sender, RoutedEventArgs e)
     {
+        if (ViewModel is null || ViewModel.IsBusy) return;
         var dialog = new OpenFileDialog { Filter = "Documents|*.txt;*.md;*.markdown;*.pdf", Multiselect = true };
         if (dialog.ShowDialog() == true && ViewModel is not null) await ViewModel.ImportFilesAsync(dialog.FileNames);
     }
@@ -23,5 +24,9 @@ public partial class KnowledgeView : UserControl
     }
     private async void Toggle_OnClick(object sender, RoutedEventArgs e) { if (ViewModel is not null) await ViewModel.ToggleSelectedAsync(); }
     private async void KnowledgeView_OnDrop(object sender, DragEventArgs e)
-    { if (ViewModel is not null && e.Data.GetData(DataFormats.FileDrop) is string[] files) await ViewModel.ImportFilesAsync(files); }
+    {
+        if (ViewModel is null || e.Data.GetData(DataFormats.FileDrop) is not string[] files) return;
+        e.Handled = true;
+        await ViewModel.ImportFilesAsync(files);
+    }
 }

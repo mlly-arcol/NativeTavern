@@ -29,6 +29,7 @@ public partial class CharactersViewModel : ObservableObject
     [ObservableProperty] private string _exampleMessages = string.Empty;
     [ObservableProperty] private string _creator = string.Empty;
     [ObservableProperty] private string _tags = string.Empty;
+    [ObservableProperty] private string _aliases = string.Empty;
     [ObservableProperty] private string _groupName = string.Empty;
     [ObservableProperty] private string _avatarPath = string.Empty;
     [ObservableProperty] private bool _isFavorite;
@@ -141,7 +142,7 @@ public partial class CharactersViewModel : ObservableObject
     private void NewCharacter()
     {
         SelectedCharacter = null;
-        Name = Description = Personality = Scenario = FirstMessage = ExampleMessages = Creator = Tags = GroupName = AvatarPath = string.Empty;
+        Name = Description = Personality = Scenario = FirstMessage = ExampleMessages = Creator = Tags = Aliases = GroupName = AvatarPath = string.Empty;
         IsFavorite = false;
         StatusMessage = "正在创建新角色。";
     }
@@ -169,6 +170,7 @@ public partial class CharactersViewModel : ObservableObject
                 ExampleMessages = ExampleMessages,
                 Creator = Creator,
                 Tags = Tags,
+                Aliases = Aliases.Trim(),
                 GroupName = GroupName.Trim(),
                 IsFavorite = IsFavorite,
                 AvatarPath = SelectedCharacter?.AvatarPath ?? string.Empty
@@ -285,6 +287,7 @@ public partial class CharactersViewModel : ObservableObject
         ExampleMessages = value.ExampleMessages;
         Creator = value.Creator;
         Tags = value.Tags;
+        Aliases = value.Aliases;
         GroupName = value.GroupName;
         AvatarPath = value.AvatarPath;
         IsFavorite = value.IsFavorite;

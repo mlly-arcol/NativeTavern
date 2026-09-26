@@ -9,8 +9,8 @@ public sealed class ChatSessionRepository(DatabaseConnectionFactory connectionFa
     {
         await using var connection = connectionFactory.CreateConnection();
         session.Id = await connection.ExecuteScalarAsync<long>(
-            "INSERT INTO ChatSessions(Title,CharacterId,IsGroupChat,ParentSessionId,BranchedFromMessageId,PersonaId,LorebookId,PromptPresetId,AuthorNote,Summary,CreatedAt,UpdatedAt) " +
-            "VALUES(@Title,@CharacterId,@IsGroupChat,@ParentSessionId,@BranchedFromMessageId,@PersonaId,@LorebookId,@PromptPresetId,@AuthorNote,@Summary,@CreatedAt,@UpdatedAt); SELECT last_insert_rowid();",
+            "INSERT INTO ChatSessions(Title,CharacterId,IsGroupChat,ParentSessionId,BranchedFromMessageId,PersonaId,LorebookId,PromptPresetId,AuthorNote,Summary,SummaryCoveredCount,SummaryIsManual,GroupName,IsPinned,CreatedAt,UpdatedAt) " +
+            "VALUES(@Title,@CharacterId,@IsGroupChat,@ParentSessionId,@BranchedFromMessageId,@PersonaId,@LorebookId,@PromptPresetId,@AuthorNote,@Summary,@SummaryCoveredCount,@SummaryIsManual,@GroupName,@IsPinned,@CreatedAt,@UpdatedAt); SELECT last_insert_rowid();",
             ToParameters(session));
         return session.Id;
     }
@@ -27,7 +27,7 @@ public sealed class ChatSessionRepository(DatabaseConnectionFactory connectionFa
     {
         await using var connection = connectionFactory.CreateConnection();
         var rows = await connection.QueryAsync<SessionRow>(
-            "SELECT * FROM ChatSessions ORDER BY UpdatedAt DESC");
+            "SELECT * FROM ChatSessions ORDER BY IsPinned DESC, UpdatedAt DESC");
         return rows.Select(x => x.ToModel()).ToList();
     }
 
@@ -47,8 +47,31 @@ public sealed class ChatSessionRepository(DatabaseConnectionFactory connectionFa
         await using var connection = connectionFactory.CreateConnection();
         await connection.ExecuteAsync(
             "UPDATE ChatSessions SET Title=@Title,CharacterId=@CharacterId,IsGroupChat=@IsGroupChat,ParentSessionId=@ParentSessionId,BranchedFromMessageId=@BranchedFromMessageId,PersonaId=@PersonaId,LorebookId=@LorebookId," +
-            "PromptPresetId=@PromptPresetId,AuthorNote=@AuthorNote,Summary=@Summary,UpdatedAt=@UpdatedAt WHERE Id=@Id",
+            "PromptPresetId=@PromptPresetId,AuthorNote=@AuthorNote,Summary=@Summary,SummaryCoveredCount=@SummaryCoveredCount,SummaryIsManual=@SummaryIsManual,UpdatedAt=@UpdatedAt WHERE Id=@Id",
             ToParameters(session));
+    }
+
+    /// <summary>Only the flag moves, so pinning never rewrites the conversation's UpdatedAt stamp.</summary>
+    public async Task SetPinnedAsync(long id, bool pinned)
+    {
+        await using var connection = connectionFactory.CreateConnection();
+        await connection.ExecuteAsync(
+            "UPDATE ChatSessions SET IsPinned=@pinned WHERE Id=@id", new { id, pinned = pinned ? 1 : 0 });
+    }
+
+    public async Task SetGroupAsync(long id, string groupName)
+    {
+        await using var connection = connectionFactory.CreateConnection();
+        await connection.ExecuteAsync(
+            "UPDATE ChatSessions SET GroupName=@groupName WHERE Id=@id", new { id, groupName });
+    }
+
+    public async Task<IReadOnlyList<string>> GetGroupNamesAsync()
+    {
+        await using var connection = connectionFactory.CreateConnection();
+        var names = await connection.QueryAsync<string>(
+            "SELECT DISTINCT TRIM(GroupName) FROM ChatSessions WHERE TRIM(GroupName)<>'' ORDER BY TRIM(GroupName)");
+        return names.ToList();
     }
 
     public async Task DeleteAsync(long id)
@@ -86,7 +109,8 @@ public sealed class ChatSessionRepository(DatabaseConnectionFactory connectionFa
     {
         value.Id, value.Title, value.CharacterId, IsGroupChat = value.IsGroupChat ? 1 : 0,
         value.ParentSessionId, value.BranchedFromMessageId, value.PersonaId, value.LorebookId,
-        value.PromptPresetId, value.AuthorNote, value.Summary,
+        value.PromptPresetId, value.AuthorNote, value.Summary, value.SummaryCoveredCount,
+        SummaryIsManual = value.SummaryIsManual ? 1 : 0, value.GroupName, IsPinned = value.IsPinned ? 1 : 0,
         CreatedAt = value.CreatedAt.ToString("O"),
         UpdatedAt = value.UpdatedAt.ToString("O")
     };
@@ -104,6 +128,10 @@ public sealed class ChatSessionRepository(DatabaseConnectionFactory connectionFa
         public long? PromptPresetId { get; init; }
         public string AuthorNote { get; init; } = string.Empty;
         public string Summary { get; init; } = string.Empty;
+        public int SummaryCoveredCount { get; init; }
+        public int SummaryIsManual { get; init; }
+        public string GroupName { get; init; } = string.Empty;
+        public int IsPinned { get; init; }
         public string CreatedAt { get; init; } = string.Empty;
         public string UpdatedAt { get; init; } = string.Empty;
         public ChatSession ToModel() => new()
@@ -111,6 +139,8 @@ public sealed class ChatSessionRepository(DatabaseConnectionFactory connectionFa
             Id = Id, Title = Title, CharacterId = CharacterId, IsGroupChat = IsGroupChat != 0,
             ParentSessionId = ParentSessionId, BranchedFromMessageId = BranchedFromMessageId, PersonaId = PersonaId,
             LorebookId = LorebookId, PromptPresetId = PromptPresetId, AuthorNote = AuthorNote, Summary = Summary,
+            SummaryCoveredCount = SummaryCoveredCount, SummaryIsManual = SummaryIsManual != 0,
+            GroupName = GroupName, IsPinned = IsPinned != 0,
             CreatedAt = DateTimeOffset.Parse(CreatedAt),
             UpdatedAt = DateTimeOffset.Parse(UpdatedAt)
         };

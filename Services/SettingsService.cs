@@ -44,4 +44,11 @@ public sealed class SettingsService(SettingsRepository repository, ISecretProtec
         settings.LanguageCode = Helpers.LanguageCodes.Normalize(languageCode);
         await SaveAsync(settings, apiKey: null);
     }
+
+    public async Task SaveThemeModeAsync(string themeMode)
+    {
+        var settings = await LoadAsync();
+        settings.ThemeMode = themeMode;
+        await SaveAsync(settings, apiKey: null);
+    }
 }

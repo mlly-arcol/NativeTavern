@@ -37,7 +37,7 @@
                 <StackPanel>
                     <TextBlock Text="欢迎回来" FontSize="29" FontWeight="SemiBold"/>
                     <TextBlock Text="登录账号，继续你的灵感旅程" Foreground="{StaticResource MutedTextBrush}" Margin="0,8,0,20"/>
-                    <Border Background="#EEF0FD" CornerRadius="10" Padding="12" Margin="0,0,0,20"><TextBlock Text="账号服务尚未开放。当前页面仅校验输入，不会发送或保存邮箱和密码；你可以点击“先体验”进入软件。" FontSize="12" Foreground="#535C91" TextWrapping="Wrap" LineHeight="19"/></Border>
+                    <Border Background="{StaticResource AccentTintBgBrush}" CornerRadius="10" Padding="12" Margin="0,0,0,20"><TextBlock Text="账号服务尚未开放。当前页面仅校验输入，不会发送或保存邮箱和密码；你可以点击“先体验”进入软件。" FontSize="12" Foreground="{StaticResource AccentTintTextBrush}" TextWrapping="Wrap" LineHeight="19"/></Border>
                     <TextBlock Text="邮箱" FontWeight="SemiBold" Margin="0,0,0,8"/>
                     <TextBox x:Name="EmailBox" MinHeight="44" MaxLength="254" AutomationProperties.Name="邮箱" ToolTip="例如 name@example.com" TextChanged="Input_OnChanged"/>
                     <TextBlock x:Name="EmailError" Visibility="{Binding Text, RelativeSource={RelativeSource Self}, Converter={StaticResource StringToVisibility}}" Foreground="{StaticResource DangerBrush}" FontSize="12" TextWrapping="Wrap" Margin="0,5,0,14" AutomationProperties.LiveSetting="Polite"/>

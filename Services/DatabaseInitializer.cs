@@ -32,7 +32,11 @@ public sealed class DatabaseInitializer(DatabaseConnectionFactory connectionFact
             ["LorebookId"] = "ALTER TABLE ChatSessions ADD COLUMN LorebookId INTEGER NULL",
             ["PromptPresetId"] = "ALTER TABLE ChatSessions ADD COLUMN PromptPresetId INTEGER NULL",
             ["AuthorNote"] = "ALTER TABLE ChatSessions ADD COLUMN AuthorNote TEXT NOT NULL DEFAULT ''",
-            ["Summary"] = "ALTER TABLE ChatSessions ADD COLUMN Summary TEXT NOT NULL DEFAULT ''"
+            ["Summary"] = "ALTER TABLE ChatSessions ADD COLUMN Summary TEXT NOT NULL DEFAULT ''",
+            ["SummaryCoveredCount"] = "ALTER TABLE ChatSessions ADD COLUMN SummaryCoveredCount INTEGER NOT NULL DEFAULT 0",
+            ["SummaryIsManual"] = "ALTER TABLE ChatSessions ADD COLUMN SummaryIsManual INTEGER NOT NULL DEFAULT 0",
+            ["GroupName"] = "ALTER TABLE ChatSessions ADD COLUMN GroupName TEXT NOT NULL DEFAULT ''",
+            ["IsPinned"] = "ALTER TABLE ChatSessions ADD COLUMN IsPinned INTEGER NOT NULL DEFAULT 0"
         };
         foreach (var migration in migrations.Where(x => !sessionColumns.Contains(x.Key)))
         {
@@ -61,6 +65,12 @@ public sealed class DatabaseInitializer(DatabaseConnectionFactory connectionFact
                 "ALTER TABLE ChatMessages ADD COLUMN SpeakerCharacterId INTEGER NULL");
             logger.LogInformation("Migrated ChatMessages speaker identity support.");
         }
+        if (!columns.Contains("IsPinned"))
+        {
+            await connection.ExecuteAsync(
+                "ALTER TABLE ChatMessages ADD COLUMN IsPinned INTEGER NOT NULL DEFAULT 0");
+            logger.LogInformation("Migrated ChatMessages pinned flag support.");
+        }
         await connection.ExecuteAsync(
             "CREATE INDEX IF NOT EXISTS IX_ChatSessionCharacters_Session ON ChatSessionCharacters(ChatSessionId)");
         await connection.ExecuteAsync(
@@ -76,12 +86,20 @@ public sealed class DatabaseInitializer(DatabaseConnectionFactory connectionFact
             await connection.ExecuteAsync("ALTER TABLE Characters ADD COLUMN GroupName TEXT NOT NULL DEFAULT ''");
             logger.LogInformation("Migrated Characters grouping support.");
         }
+        if (!characterColumns.Contains("Aliases"))
+        {
+            await connection.ExecuteAsync("ALTER TABLE Characters ADD COLUMN Aliases TEXT NOT NULL DEFAULT ''");
+            logger.LogInformation("Migrated Characters alias support.");
+        }
         await connection.ExecuteAsync(
             "CREATE INDEX IF NOT EXISTS IX_Characters_GroupName ON Characters(GroupName)");
         await connection.ExecuteAsync(
             "INSERT OR IGNORE INTO CharacterGroups(Name,CreatedAt) " +
             "SELECT DISTINCT TRIM(GroupName),@createdAt FROM Characters WHERE TRIM(GroupName)<>''",
             new { createdAt = DateTimeOffset.UtcNow.ToString("O") });
+        // Created here rather than in schema.sql: the column only exists once the migration above has run.
+        await connection.ExecuteAsync(
+            "CREATE INDEX IF NOT EXISTS IX_ChatSessions_PinnedUpdated ON ChatSessions(IsPinned DESC, UpdatedAt DESC)");
         await NormalizeManagedPathsAsync(connection);
         logger.LogInformation("Database initialized at {DatabasePath}", Helpers.AppPaths.DatabaseFile);
     }

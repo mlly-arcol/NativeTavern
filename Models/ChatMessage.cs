@@ -10,4 +10,6 @@ public sealed class ChatMessage
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset? UpdatedAt { get; set; }
     public int CurrentSwipeIndex { get; set; }
+    /// <summary>Favourites live in their own column so pinning never rewrites UpdatedAt or the swipe history.</summary>
+    public bool IsPinned { get; set; }
 }

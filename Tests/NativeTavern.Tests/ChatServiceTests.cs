@@ -200,7 +200,9 @@ public sealed class ChatServiceTests
         var summary = new ConversationSummaryService(messages, sessions);
         return (new ChatService(
             sessions, messages, swipes, attachments, attachmentService, summary, characters,
-            promptService, settings, provider, NullLogger<ChatService>.Instance), messages);
+            promptService,
+            new RegexScriptService(new RegexScriptRepository(factory), NullLogger<RegexScriptService>.Instance),
+            settings, provider, NullLogger<ChatService>.Instance), messages);
     }
 
     private sealed class FailingProvider : ILLMProvider

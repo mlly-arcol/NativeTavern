@@ -1,3 +1,4 @@
+using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -8,6 +9,8 @@ public static class JsonDefaults
     public static JsonSerializerOptions Options { get; } = new(JsonSerializerDefaults.Web)
     {
         PropertyNameCaseInsensitive = true,
-        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+        // Chinese roleplay text stays readable in exported files instead of turning into escape sequences.
+        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
     };
 }

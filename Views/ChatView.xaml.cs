@@ -46,12 +46,47 @@ public partial class ChatView : UserControl
     private void ChatView_OnLoaded(object sender, RoutedEventArgs e)
     {
         AttachViewModel();
+        if (_viewModel is not null)
+        {
+            _viewModel.JumpToMessageRequested -= OnJumpToMessageRequested;
+            _viewModel.JumpToMessageRequested += OnJumpToMessageRequested;
+        }
         _messageScrollViewer = FindVisualChild<ScrollViewer>(MessageList);
         if (_messageScrollViewer is null) return;
 
         _smoothScrollTarget = _messageScrollViewer.VerticalOffset;
         MessageList.PreviewMouseWheel -= MessageList_OnPreviewMouseWheel;
         MessageList.PreviewMouseWheel += MessageList_OnPreviewMouseWheel;
+    }
+
+    private void SearchBox_OnKeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key != Key.Enter || DataContext is not ChatViewModel viewModel) return;
+        e.Handled = true;
+        _ = viewModel.SearchMessagesCommand.ExecuteAsync(null);
+    }
+
+    private void SearchPopup_OnClosed(object sender, EventArgs e)
+    {
+        if (DataContext is ChatViewModel viewModel) viewModel.IsSearchOpen = false;
+    }
+
+    private void PinnedPopup_OnClosed(object sender, EventArgs e)
+    {
+        if (DataContext is ChatViewModel viewModel) viewModel.IsPinnedListOpen = false;
+    }
+
+    private void StorySummaryPopup_OnClosed(object sender, EventArgs e)
+    {
+        if (DataContext is ChatViewModel viewModel) viewModel.IsStorySummaryOpen = false;
+    }
+
+    private void OnJumpToMessageRequested(long messageId)
+    {
+        var target = _viewModel?.Messages.FirstOrDefault(x => x.Model.Id == messageId);
+        if (target is null) return;
+        MessageList.ScrollIntoView(target);
+        MessageList.SelectedItem = target;
     }
 
     private void ChatView_OnUnloaded(object sender, RoutedEventArgs e)
@@ -224,9 +259,9 @@ public partial class ChatView : UserControl
         {
             Title = "Export Conversation",
             FileName = DataExportService.CreateSafeFileName(_viewModel.SessionTitle, "conversation"),
-            DefaultExt = ".md",
+            DefaultExt = ".html",
             AddExtension = true,
-            Filter = "Markdown (*.md)|*.md|JSON (*.json)|*.json"
+            Filter = "Reading copy HTML (*.html)|*.html|Markdown (*.md)|*.md|JSON (*.json)|*.json"
         };
         if (dialog.ShowDialog() != true) return;
         try
@@ -261,7 +296,8 @@ public partial class ChatView : UserControl
                 dialog.SelectedPersona,
                 dialog.SelectedLorebook,
                 dialog.SelectedPreset,
-                dialog.AuthorNote);
+                dialog.AuthorNote,
+                dialog.GroupName);
     }
 
     private void NextSpeaker_OnClick(object sender, RoutedEventArgs e)

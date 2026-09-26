@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
+using Microsoft.Win32;
 using NativeTavern.ViewModels;
 
 namespace NativeTavern.Views;
@@ -8,6 +9,31 @@ public partial class PromptStudioView : UserControl
 {
     public PromptStudioView() => InitializeComponent();
     private PromptStudioViewModel? ViewModel => DataContext as PromptStudioViewModel;
+
+    private async void ExportResources_OnClick(object sender, RoutedEventArgs e)
+    {
+        if (ViewModel is null) return;
+        var dialog = new SaveFileDialog
+        {
+            Title = "Export Prompt Resources",
+            FileName = $"nativetavern-resources-{DateTime.Now:yyyy-MM-dd}.json",
+            DefaultExt = ".json",
+            AddExtension = true,
+            Filter = "JSON (*.json)|*.json"
+        };
+        if (dialog.ShowDialog() == true) await ViewModel.ExportResourcesAsync(dialog.FileName);
+    }
+
+    private async void ImportResources_OnClick(object sender, RoutedEventArgs e)
+    {
+        if (ViewModel is null) return;
+        var dialog = new OpenFileDialog
+        {
+            Title = "Import Prompt Resources",
+            Filter = "Prompt resources (*.json)|*.json|All files (*.*)|*.*"
+        };
+        if (dialog.ShowDialog() == true) await ViewModel.ImportResourcesAsync(dialog.FileName);
+    }
 
     private async void DeletePersona_OnClick(object sender, RoutedEventArgs e)
     {

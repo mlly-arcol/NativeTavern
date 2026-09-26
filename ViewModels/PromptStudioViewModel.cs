@@ -4,11 +4,15 @@ using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
 using NativeTavern.Data.Repositories;
 using NativeTavern.Models;
+using NativeTavern.Services;
 
 namespace NativeTavern.ViewModels;
 
 public partial class PromptStudioViewModel(
     PromptRepository repository,
+    RegexScriptService regexScriptService,
+    PromptResourceService resourceService,
+    LocalizationService localization,
     ILogger<PromptStudioViewModel> logger) : ObservableObject
 {
     public ObservableCollection<Persona> Personas { get; } = [];
@@ -43,6 +47,121 @@ public partial class PromptStudioViewModel(
     [ObservableProperty] private int? _presetMaxTokens;
     [ObservableProperty] private string? _statusMessage;
 
+    public ObservableCollection<RegexScript> RegexScripts { get; } = [];
+    public IReadOnlyList<string> ScriptTargets { get; } = ["Model output", "User input"];
+    public IReadOnlyList<string> ScriptModes { get; } = ["Regular expression", "Plain text"];
+    [ObservableProperty] private RegexScript? _selectedRegexScript;
+    [ObservableProperty] private string _scriptName = "";
+    [ObservableProperty] private string _scriptPattern = "";
+    [ObservableProperty] private string _scriptReplacement = "";
+    [ObservableProperty] private string _scriptTarget = "Model output";
+    [ObservableProperty] private string _scriptMode = "Regular expression";
+    [ObservableProperty] private bool _scriptEnabled = true;
+    [ObservableProperty] private string _scriptTest = "";
+    [ObservableProperty] private string _scriptPreview = "";
+    [ObservableProperty] private string? _scriptPatternError;
+
+    private static RegexScriptTarget ToTarget(string value) =>
+        value == "User input" ? RegexScriptTarget.UserInput : RegexScriptTarget.AssistantOutput;
+
+    private static RegexScriptMode ToMode(string value) =>
+        value == "Plain text" ? RegexScriptMode.Literal : RegexScriptMode.Regex;
+
+    [RelayCommand]
+    private void NewRegexScript()
+    {
+        SelectedRegexScript = null;
+        ScriptName = ScriptPattern = ScriptReplacement = ScriptTest = ScriptPreview = string.Empty;
+        ScriptTarget = ScriptTargets[0];
+        ScriptMode = ScriptModes[0];
+        ScriptEnabled = true;
+        ScriptPatternError = null;
+        StatusMessage = "New regex script";
+    }
+
+    [RelayCommand]
+    private async Task SaveRegexScriptAsync()
+    {
+        if (string.IsNullOrWhiteSpace(ScriptName) || string.IsNullOrWhiteSpace(ScriptPattern))
+        {
+            StatusMessage = "Script name and pattern cannot be empty.";
+            return;
+        }
+
+        var error = RegexScriptService.ValidatePattern(ToMode(ScriptMode), ScriptPattern);
+        ScriptPatternError = error;
+        if (error is not null)
+        {
+            StatusMessage = "The pattern cannot be compiled. Check the message under the pattern field.";
+            return;
+        }
+
+        var item = SelectedRegexScript ?? new RegexScript();
+        item.Name = ScriptName.Trim();
+        item.Pattern = ScriptPattern;
+        item.Replacement = ScriptReplacement;
+        item.Target = ToTarget(ScriptTarget);
+        item.Mode = ToMode(ScriptMode);
+        item.IsEnabled = ScriptEnabled;
+        await RunAsync(async () =>
+        {
+            await regexScriptService.SaveAsync(item);
+            await RefreshScriptsAsync(item.Id);
+            Saved?.Invoke();
+        }, "Script saved.");
+    }
+
+    [RelayCommand]
+    private Task DeleteSelectedRegexScriptAsync() => SelectedRegexScript is null ? Task.CompletedTask :
+        RunAsync(async () =>
+        {
+            await regexScriptService.DeleteAsync(SelectedRegexScript.Id);
+            NewRegexScript();
+            await RefreshScriptsAsync();
+            Saved?.Invoke();
+        }, "Script deleted.");
+
+    private void RefreshScriptPreview()
+    {
+        ScriptPatternError = RegexScriptService.ValidatePattern(ToMode(ScriptMode), ScriptPattern);
+        if (ScriptPatternError is not null || ScriptTest.Length == 0 || ScriptPattern.Length == 0)
+        {
+            ScriptPreview = string.Empty;
+            return;
+        }
+
+        var draft = new RegexScript
+        {
+            Pattern = ScriptPattern,
+            Replacement = ScriptReplacement,
+            Mode = ToMode(ScriptMode),
+            Target = ToTarget(ScriptTarget),
+            // The preview shows what the rule would do, even while it is switched off.
+            IsEnabled = true,
+        };
+        ScriptPreview = RegexScriptService.Apply(
+            ScriptTest, [RegexScriptService.CompiledScript.Compile(draft)], draft.Target);
+    }
+
+    partial void OnScriptPatternChanged(string value) => RefreshScriptPreview();
+    partial void OnScriptReplacementChanged(string value) => RefreshScriptPreview();
+    partial void OnScriptModeChanged(string value) => RefreshScriptPreview();
+    partial void OnScriptTestChanged(string value) => RefreshScriptPreview();
+
+    partial void OnSelectedRegexScriptChanged(RegexScript? value)
+    {
+        if (value is null) return;
+        ScriptName = value.Name;
+        ScriptPattern = value.Pattern;
+        ScriptReplacement = value.Replacement;
+        ScriptTarget = value.Target == RegexScriptTarget.UserInput ? ScriptTargets[1] : ScriptTargets[0];
+        ScriptMode = ScriptModes[value.Mode == RegexScriptMode.Literal ? 1 : 0];
+        ScriptEnabled = value.IsEnabled;
+        StatusMessage = null;
+        RefreshScriptPreview();
+    }
+
+
     public event Action? Saved;
 
     public async Task InitializeAsync()
@@ -50,6 +169,42 @@ public partial class PromptStudioViewModel(
         await RefreshPersonasAsync();
         await RefreshLorebooksAsync();
         await RefreshPresetsAsync();
+        await RefreshScriptsAsync();
+    }
+
+    public Task ExportResourcesAsync(string path) => RunFileAsync(async () =>
+    {
+        await resourceService.ExportAllAsync(path);
+        return localization.Text($"已导出到 {Path.GetFileName(path)}", $"Exported to {Path.GetFileName(path)}");
+    });
+
+    public Task ImportResourcesAsync(string path) => RunFileAsync(async () =>
+    {
+        var report = await resourceService.ImportFileAsync(path);
+        await InitializeAsync();
+        Saved?.Invoke();
+        return DescribeImport(report);
+    });
+
+    private string DescribeImport(PromptResourceService.ImportReport report)
+    {
+        var summary = localization.Text(
+            $"导入完成：人设 {report.Personas}、世界书 {report.Lorebooks}（条目 {report.LoreEntries}）、预设 {report.Presets}、脚本 {report.Scripts}。",
+            $"Imported {report.Personas} persona(s), {report.Lorebooks} lorebook(s) with {report.LoreEntries} entries, " +
+            $"{report.Presets} preset(s) and {report.Scripts} script(s).");
+        return report.Warnings.Count == 0
+            ? summary
+            : summary + localization.Text($" 跳过 {report.Warnings.Count} 项。", $" {report.Warnings.Count} item(s) skipped.");
+    }
+
+    private async Task RunFileAsync(Func<Task<string>> action)
+    {
+        try { StatusMessage = await action(); }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Prompt Studio file operation failed.");
+            StatusMessage = localization.Text("操作失败：", "Operation failed: ") + ex.Message;
+        }
     }
 
     [RelayCommand]
@@ -140,6 +295,8 @@ public partial class PromptStudioViewModel(
     { LoreEntries.Clear(); foreach(var x in await repository.GetLoreEntriesAsync(lorebookId)) LoreEntries.Add(x); if(id is not null) SelectedLoreEntry=LoreEntries.FirstOrDefault(x=>x.Id==id); }
     private async Task RefreshPresetsAsync(long? id = null)
     { Presets.Clear(); foreach(var x in await repository.GetPresetsAsync()) Presets.Add(x); if(id is not null) SelectedPreset=Presets.FirstOrDefault(x=>x.Id==id); }
+    private async Task RefreshScriptsAsync(long? id = null)
+    { RegexScripts.Clear(); foreach(var x in await regexScriptService.GetScriptsAsync()) RegexScripts.Add(x); if(id is not null) SelectedRegexScript=RegexScripts.FirstOrDefault(x=>x.Id==id); }
 
     private async Task RunAsync(Func<Task> action, string success)
     {

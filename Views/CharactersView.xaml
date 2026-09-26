@@ -41,7 +41,7 @@
     </Grid>
    </Border>
    <DataTemplate.Triggers><DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=ListBoxItem}}" Value="True">
-    <Setter TargetName="CharacterCard" Property="Background" Value="#EEF0FD"/><Setter TargetName="CharacterCard" Property="BorderBrush" Value="{StaticResource AccentBrush}"/>
+    <Setter TargetName="CharacterCard" Property="Background" Value="{StaticResource AccentTintBgBrush}"/><Setter TargetName="CharacterCard" Property="BorderBrush" Value="{StaticResource AccentBrush}"/>
    </DataTrigger></DataTemplate.Triggers>
   </DataTemplate>
  </UserControl.Resources>
@@ -90,7 +90,7 @@
               </TextBlock>
               <TextBlock Grid.Column="1" Text="📁" FontSize="18" VerticalAlignment="Center"/>
               <TextBlock Grid.Column="2" Text="{Binding Name}" FontWeight="SemiBold" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
-              <Border Grid.Column="3" Background="White" CornerRadius="9" Padding="7,2" Margin="8,0,2,0">
+              <Border Grid.Column="3" Background="{StaticResource PanelBrush}" CornerRadius="9" Padding="7,2" Margin="8,0,2,0">
                <TextBlock Text="{Binding CharacterCount}" FontSize="11" Foreground="{StaticResource MutedTextBrush}"/>
               </Border>
              </Grid>
@@ -98,7 +98,7 @@
             <Button Grid.Column="1" Content="群聊" ToolTip="使用该分组创建群聊" Click="StartGroupChat_OnClick" Padding="3" Margin="1"/>
             <Button Grid.Column="2" Content="✎" ToolTip="编辑分组" Click="EditGroup_OnClick" Padding="0" Margin="1"/>
             <Button Grid.Column="3" Content="×" ToolTip="删除分组" Click="DeleteGroup_OnClick" Padding="0" Margin="1"
-                    Foreground="#B42318"/>
+                    Foreground="{StaticResource DangerTextBrush}"/>
            </Grid>
           </Border>
           <ListBox ItemsSource="{Binding Characters}"
@@ -150,6 +150,7 @@
       <Grid.RowDefinitions>
        <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
        <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
+       <RowDefinition Height="Auto"/>
       </Grid.RowDefinitions>
        <TextBlock Grid.Row="0" Text="Name *" VerticalAlignment="Center"/><TextBox Grid.Row="0" Grid.Column="1" Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,12"/>
        <TextBlock Grid.Row="1" Text="Creator" VerticalAlignment="Center"/><TextBox Grid.Row="1" Grid.Column="1" Text="{Binding Creator, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,12"/>
@@ -157,20 +158,21 @@
        <TextBlock Grid.Row="3" Text="Group" VerticalAlignment="Center"/>
        <TextBox Grid.Row="3" Grid.Column="1" Text="{Binding GroupName}" IsReadOnly="True"
                 ToolTip="Use the group editor to change membership" Margin="0,0,0,12"/>
-       <TextBlock Grid.Row="4" Text="Description" VerticalAlignment="Top" Margin="0,10,0,0"/><TextBox Grid.Row="4" Grid.Column="1" Text="{Binding Description, UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="84" Margin="0,0,0,12"/>
-       <TextBlock Grid.Row="5" Text="Personality" VerticalAlignment="Top" Margin="0,10,0,0"/><TextBox Grid.Row="5" Grid.Column="1" Text="{Binding Personality, UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="84" Margin="0,0,0,12"/>
-       <TextBlock Grid.Row="6" Text="Scenario" VerticalAlignment="Top" Margin="0,10,0,0"/><TextBox Grid.Row="6" Grid.Column="1" Text="{Binding Scenario, UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="84" Margin="0,0,0,12"/>
-       <TextBlock Grid.Row="7" Text="First Message" VerticalAlignment="Top" Margin="0,10,0,0"/><TextBox Grid.Row="7" Grid.Column="1" Text="{Binding FirstMessage, UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="118" Margin="0,0,0,12"/>
-       <TextBlock Grid.Row="8" Text="Example Messages" VerticalAlignment="Top" Margin="0,10,0,0"/><TextBox Grid.Row="8" Grid.Column="1" Text="{Binding ExampleMessages, UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="118"/>
+       <TextBlock Grid.Row="4" Text="Aliases" VerticalAlignment="Center"/><TextBox Grid.Row="4" Grid.Column="1" Text="{Binding Aliases, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,12" ToolTip="逗号分隔的别名，搜索角色和按角色筛选消息都会用到"/>
+       <TextBlock Grid.Row="5" Text="Description" VerticalAlignment="Top" Margin="0,10,0,0"/><TextBox Grid.Row="5" Grid.Column="1" Text="{Binding Description, UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="84" Margin="0,0,0,12"/>
+       <TextBlock Grid.Row="6" Text="Personality" VerticalAlignment="Top" Margin="0,10,0,0"/><TextBox Grid.Row="6" Grid.Column="1" Text="{Binding Personality, UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="84" Margin="0,0,0,12"/>
+       <TextBlock Grid.Row="7" Text="Scenario" VerticalAlignment="Top" Margin="0,10,0,0"/><TextBox Grid.Row="7" Grid.Column="1" Text="{Binding Scenario, UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="84" Margin="0,0,0,12"/>
+       <TextBlock Grid.Row="8" Text="First Message" VerticalAlignment="Top" Margin="0,10,0,0"/><TextBox Grid.Row="8" Grid.Column="1" Text="{Binding FirstMessage, UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="118" Margin="0,0,0,12"/>
+       <TextBlock Grid.Row="9" Text="Example Messages" VerticalAlignment="Top" Margin="0,10,0,0"/><TextBox Grid.Row="9" Grid.Column="1" Text="{Binding ExampleMessages, UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="118"/>
       </Grid>
      </ScrollViewer>
-     <Border Grid.Row="2" Background="#FAFAFA" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,1,0,0" Padding="22,14">
+     <Border Grid.Row="2" Background="{StaticResource NeutralBgBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,1,0,0" Padding="22,14">
       <Grid>
        <StackPanel Orientation="Horizontal">
        <Button Content="Save" Command="{Binding SaveCommand}" Style="{StaticResource PrimaryButtonStyle}"/>
        <Button Content="Start Chat" Command="{Binding StartChatCommand}"/>
-       <Button Content="Export Card" Click="Export_OnClick"/>
-       <Button Content="Delete" Click="Delete_OnClick" Background="#FFF3F2" Foreground="#B42318" BorderBrush="#F1C6C2"/>
+       <Button Content="Export Card" Click="Export_OnClick" ToolTip="Saves JSON, or embeds the card in a PNG avatar for sharing"/>
+       <Button Content="Delete" Click="Delete_OnClick" Background="{StaticResource DangerSoftBgBrush}" Foreground="{StaticResource DangerTextBrush}" BorderBrush="{StaticResource DangerSoftBorderBrush}"/>
        </StackPanel>
        <TextBlock Text="{Binding StatusMessage}" Foreground="{StaticResource MutedTextBrush}" TextWrapping="Wrap" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="16,0,0,0"/>
       </Grid>
