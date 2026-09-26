@@ -5,7 +5,7 @@
  xmlns:models="clr-namespace:NativeTavern.Models">
  <UserControl.Resources>
   <Style x:Key="MessageActionButtonStyle" TargetType="Button" BasedOn="{StaticResource GhostButtonStyle}">
-   <Setter Property="Background" Value="#F7F7F8"/>
+   <Setter Property="Background" Value="{StaticResource NeutralBgBrush}"/>
    <Setter Property="Foreground" Value="{StaticResource MutedTextBrush}"/>
    <Setter Property="Padding" Value="8,5"/>
    <Setter Property="Margin" Value="0,0,5,0"/>
@@ -18,7 +18,7 @@
   <!-- Compact conversation header -->
   <Border BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,0,1" Padding="24,16" Background="{StaticResource PanelBrush}">
    <Grid>
-    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
     <StackPanel VerticalAlignment="Center">
      <StackPanel Orientation="Horizontal">
       <TextBlock Text="{Binding SessionTitle}" FontSize="16" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" MaxWidth="430"/>
@@ -43,13 +43,215 @@
               Visibility="{Binding IsGroupChat, Converter={StaticResource BoolToVisibility}}"/>
       <Button Content="下一位 ▾" Click="NextSpeaker_OnClick" Margin="0,0,8,0" ToolTip="自动选择或指定下一位发言角色"
               Visibility="{Binding IsGroupChat, Converter={StaticResource BoolToVisibility}}"/>
-      <ComboBox Width="230" Height="38" ItemsSource="{Binding Sessions}" SelectedItem="{Binding SelectedSession}" DisplayMemberPath="Title" Margin="0,0,8,0" ToolTip="Switch conversation"/>
+      <Button Content="📌" Margin="0,0,8,0" Command="{Binding ToggleSessionPinCommand}"
+              ToolTip="Pin this conversation" AutomationProperties.Name="Pin conversation">
+        <Button.Style>
+          <Style TargetType="Button" BasedOn="{StaticResource RoundIconButtonStyle}">
+            <Setter Property="Opacity" Value="0.45"/>
+            <Style.Triggers>
+              <DataTrigger Binding="{Binding IsCurrentSessionPinned}" Value="True"><Setter Property="Opacity" Value="1"/></DataTrigger>
+            </Style.Triggers>
+          </Style>
+        </Button.Style>
+      </Button>
+      <ComboBox Width="250" Height="38" ItemsSource="{Binding Sessions}" SelectedItem="{Binding SelectedSession}"
+                DisplayMemberPath="PickerText" Margin="0,0,8,0" ToolTip="Switch conversation" AutomationProperties.Name="Switch conversation">
+        <ComboBox.ItemContainerStyle>
+          <Style TargetType="ComboBoxItem" BasedOn="{StaticResource {x:Type ComboBoxItem}}">
+            <Setter Property="AutomationProperties.Name" Value="{Binding PickerLabel}"/>
+          </Style>
+        </ComboBox.ItemContainerStyle>
+      </ComboBox>
+      <Grid Width="200" Height="38" Margin="0,0,8,0">
+      <TextBox x:Name="ConversationSearchBox" VerticalContentAlignment="Center"
+               Text="{Binding SearchQuery, UpdateSourceTrigger=PropertyChanged}" KeyDown="SearchBox_OnKeyDown"
+               ToolTip="Search every conversation · Enter to search" AutomationProperties.Name="Search conversations" AutomationProperties.HelpText="Type at least two characters and press Enter"/>
+      <TextBlock Text="搜索所有对话" Foreground="{StaticResource SubtleTextBrush}" FontSize="12" IsHitTestVisible="False"
+                 VerticalAlignment="Center" Margin="9,1,0,0">
+        <TextBlock.Style>
+          <Style TargetType="TextBlock">
+            <Setter Property="Visibility" Value="Collapsed"/>
+            <Style.Triggers>
+              <DataTrigger Binding="{Binding SearchQuery}" Value=""><Setter Property="Visibility" Value="Visible"/></DataTrigger>
+              <DataTrigger Binding="{Binding SearchQuery}" Value="{x:Null}"><Setter Property="Visibility" Value="Visible"/></DataTrigger>
+            </Style.Triggers>
+          </Style>
+        </TextBlock.Style>
+      </TextBlock>
+      </Grid>
+      <Popup PlacementTarget="{Binding ElementName=ConversationSearchBox}" Placement="Bottom" AllowsTransparency="True"
+             HorizontalOffset="-200"
+             IsOpen="{Binding IsSearchOpen}" StaysOpen="False" Closed="SearchPopup_OnClosed">
+        <Border Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
+                CornerRadius="10" Padding="6" MinWidth="420" MaxWidth="480" Margin="0,4,0,0">
+          <StackPanel>
+            <ScrollViewer MaxHeight="330" VerticalScrollBarVisibility="Auto">
+              <ItemsControl ItemsSource="{Binding SearchResults}">
+                <ItemsControl.ItemTemplate><DataTemplate>
+                  <Button Style="{StaticResource GhostButtonStyle}" MaxWidth="460" HorizontalContentAlignment="Left"
+                          Padding="10,8" Margin="0,1" ToolTip="{Binding Snippet}"
+                          AutomationProperties.Name="{Binding Label}"
+                          Command="{Binding DataContext.OpenSearchResultCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                          CommandParameter="{Binding}">
+                    <StackPanel>
+                      <DockPanel>
+                        <TextBlock DockPanel.Dock="Right" Text="{Binding CreatedAt, StringFormat='{}{0:MM-dd HH:mm}'}"
+                                   Foreground="{StaticResource SubtleTextBrush}" FontSize="10"/>
+                        <TextBlock Text="{Binding SessionTitle}" FontWeight="SemiBold" FontSize="12" TextTrimming="CharacterEllipsis"/>
+                      </DockPanel>
+                      <TextBlock Text="{Binding Speaker}" Foreground="{StaticResource SubtleTextBrush}" FontSize="10"
+                                 Margin="0,1,0,0" Visibility="{Binding Speaker, Converter={StaticResource StringToVisibility}}"/>
+                      <TextBlock Text="{Binding Snippet}" Foreground="{StaticResource MutedTextBrush}" FontSize="11"
+                                 TextWrapping="Wrap" MaxHeight="42" LineHeight="16"/>
+                    </StackPanel>
+                  </Button>
+                </DataTemplate></ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </ScrollViewer>
+            <TextBlock Text="No matching messages" Foreground="{StaticResource MutedTextBrush}" Margin="10,8"
+                       Visibility="{Binding HasSearchResults, Converter={StaticResource InverseBoolToVisibility}}"/>
+          </StackPanel>
+        </Border>
+      </Popup>
+     <Button x:Name="PinnedListButton" Content="★" Style="{StaticResource RoundIconButtonStyle}" Margin="0,0,8,0"
+             Command="{Binding OpenPinnedListCommand}" IsEnabled="{Binding HasPinnedMessages}"
+             ToolTip="Pinned messages" AutomationProperties.Name="Pinned messages"/>
+      <Popup PlacementTarget="{Binding ElementName=PinnedListButton}" Placement="Bottom" AllowsTransparency="True"
+             IsOpen="{Binding IsPinnedListOpen}" StaysOpen="False" Closed="PinnedPopup_OnClosed">
+        <Border Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
+                CornerRadius="10" Padding="6" MinWidth="380" MaxWidth="460" Margin="0,4,0,0">
+          <ScrollViewer MaxHeight="330" VerticalScrollBarVisibility="Auto">
+            <ItemsControl ItemsSource="{Binding PinnedMessages}">
+              <ItemsControl.ItemTemplate><DataTemplate>
+                <Button Style="{StaticResource GhostButtonStyle}" MaxWidth="440" HorizontalContentAlignment="Left"
+                        Padding="10,8" Margin="0,1" AutomationProperties.Name="{Binding EntryLabel}"
+                        Command="{Binding DataContext.JumpToPinnedCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                        CommandParameter="{Binding}">
+                  <StackPanel>
+                    <TextBlock Text="{Binding RoleLabel}" FontWeight="SemiBold" FontSize="12" TextTrimming="CharacterEllipsis"/>
+                    <TextBlock Text="{Binding Content}" Foreground="{StaticResource MutedTextBrush}" FontSize="11"
+                               TextWrapping="Wrap" MaxHeight="42" LineHeight="16"/>
+                  </StackPanel>
+                </Button>
+              </DataTemplate></ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </ScrollViewer>
+        </Border>
+      </Popup>
+     <Button x:Name="StorySummaryButton" Content="❖" Style="{StaticResource RoundIconButtonStyle}" Margin="0,0,8,0"
+             Command="{Binding OpenStorySummaryCommand}" ToolTip="Story summary" AutomationProperties.Name="Story summary"/>
+      <Popup PlacementTarget="{Binding ElementName=StorySummaryButton}" Placement="Bottom" AllowsTransparency="True"
+             HorizontalOffset="-300"
+             IsOpen="{Binding IsStorySummaryOpen}" StaysOpen="False" Closed="StorySummaryPopup_OnClosed">
+        <Border Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
+                CornerRadius="10" Padding="12" Width="440" Margin="0,4,0,0">
+          <StackPanel>
+            <TextBlock Text="剧情回顾" FontWeight="SemiBold" FontSize="13"/>
+            <TextBlock Text="{Binding StorySummaryCoverage}" Foreground="{StaticResource SubtleTextBrush}" FontSize="11" Margin="0,2,0,8"/>
+            <TextBox Height="190" AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"
+                     FontSize="12" Text="{Binding StorySummary, UpdateSourceTrigger=PropertyChanged}"
+                     AutomationProperties.Name="Story summary text"
+                     ToolTip="这段回顾会随每次请求发送给模型，可直接修改"/>
+            <TextBlock Text="{Binding StorySummaryStatus}" Foreground="{StaticResource MutedTextBrush}" FontSize="11"
+                       TextWrapping="Wrap" Margin="0,6,0,0"/>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
+              <Button Content="清空" Command="{Binding ClearStorySummaryCommand}"/>
+              <Button Content="重新生成" Command="{Binding RebuildStorySummaryCommand}" Margin="8,0,0,0"/>
+              <Button Content="保存回顾" Command="{Binding SaveStorySummaryCommand}" Style="{StaticResource PrimaryButtonStyle}" Margin="8,0,0,0"/>
+            </StackPanel>
+          </StackPanel>
+        </Border>
+      </Popup>
+     <Button x:Name="StatsButton" Content="📊" Style="{StaticResource RoundIconButtonStyle}" Margin="0,0,8,0"
+             Command="{Binding OpenStatsCommand}" ToolTip="Conversation stats" AutomationProperties.Name="Conversation stats"/>
+      <Popup PlacementTarget="{Binding ElementName=StatsButton}" Placement="Bottom" AllowsTransparency="True"
+             HorizontalOffset="-300"
+             IsOpen="{Binding IsStatsOpen}" StaysOpen="False">
+        <Border Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
+                CornerRadius="10" Padding="14" Width="360" Margin="0,4,0,0">
+          <StackPanel>
+            <TextBlock Text="对话统计" FontWeight="SemiBold" FontSize="13"/>
+            <ItemsControl ItemsSource="{Binding StatLines}" Margin="0,8,0,0">
+              <ItemsControl.ItemTemplate><DataTemplate>
+                <Grid Margin="0,2">
+                  <Grid.ColumnDefinitions><ColumnDefinition Width="92"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                  <TextBlock Text="{Binding Label}" Foreground="{StaticResource MutedTextBrush}" FontSize="12"/>
+                  <TextBlock Grid.Column="1" Text="{Binding Value}" FontSize="12" TextWrapping="Wrap"/>
+                </Grid>
+              </DataTemplate></ItemsControl.ItemTemplate>
+            </ItemsControl>
+            <TextBlock Text="发言占比" Foreground="{StaticResource MutedTextBrush}" FontSize="11" Margin="0,10,0,2"
+                       Visibility="{Binding HasSpeakerShares, Converter={StaticResource BoolToVisibility}}"/>
+            <ItemsControl ItemsSource="{Binding SpeakerShares}"
+                          Visibility="{Binding HasSpeakerShares, Converter={StaticResource BoolToVisibility}}">
+              <ItemsControl.ItemTemplate><DataTemplate>
+                <Grid Margin="0,3">
+                  <Grid.ColumnDefinitions><ColumnDefinition Width="92"/><ColumnDefinition Width="*"/><ColumnDefinition Width="56"/></Grid.ColumnDefinitions>
+                  <TextBlock Text="{Binding Name}" FontSize="12" TextTrimming="CharacterEllipsis"/>
+                  <ProgressBar Grid.Column="1" Height="7" Maximum="100" Value="{Binding Percent, Mode=OneWay}"
+                               Foreground="{StaticResource AccentBrush}" Background="{StaticResource CardBrush}"
+                               BorderThickness="0" VerticalAlignment="Center"/>
+                  <TextBlock Grid.Column="2" FontSize="11" Foreground="{StaticResource SubtleTextBrush}" HorizontalAlignment="Right">
+                    <Run Text="{Binding Percent, Mode=OneWay}"/><Run Text="%"/>
+                  </TextBlock>
+                </Grid>
+              </DataTemplate></ItemsControl.ItemTemplate>
+            </ItemsControl>
+            <TextBlock Text="角色反复用到的说法" Foreground="{StaticResource MutedTextBrush}" FontSize="11" Margin="0,10,0,2"
+                       Visibility="{Binding HasRepeatedPhrases, Converter={StaticResource BoolToVisibility}}"/>
+            <ItemsControl ItemsSource="{Binding RepeatedPhrases}"
+                          Visibility="{Binding HasRepeatedPhrases, Converter={StaticResource BoolToVisibility}}">
+              <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+              <ItemsControl.ItemTemplate><DataTemplate>
+                <Border Background="{StaticResource NeutralBgBrush}" CornerRadius="8" Padding="7,4" Margin="0,0,6,6">
+                  <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="{Binding Phrase}" FontSize="12"/>
+                    <TextBlock FontSize="11" Foreground="{StaticResource SubtleTextBrush}" Margin="4,0,0,0">
+                      <Run Text="×"/><Run Text="{Binding Messages, Mode=OneWay}"/>
+                    </TextBlock>
+                    <Button Content="→规则" Style="{StaticResource GhostButtonStyle}" FontSize="11" Padding="5,0" Margin="6,0,0,0"
+                            Command="{Binding DataContext.CreateRewriteRuleCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                            CommandParameter="{Binding}" ToolTip="建一条文案脚本，之后模型写出的这个词会被自动去掉" AutomationProperties.Name="Create rewrite rule"/>
+                  </StackPanel>
+                </Border>
+              </DataTemplate></ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+        </Border>
+      </Popup>
      <Button Content="⚙ 对话设置" Click="PromptSettings_OnClick" Margin="0,0,8,0" ToolTip="对话设置"/>
      <Button Content="⌕" Style="{StaticResource RoundIconButtonStyle}" Command="{Binding OpenPromptInspectorCommand}" Margin="0,0,8,0" ToolTip="Inspect prompt" AutomationProperties.Name="Inspect prompt"/>
      <Button Content="⇩" Style="{StaticResource RoundIconButtonStyle}" Click="ExportChat_OnClick" Margin="0,0,8,0" ToolTip="Export conversation" AutomationProperties.Name="Export conversation"/>
      <Button Content="＋" Style="{StaticResource RoundIconButtonStyle}" Command="{Binding NewChatCommand}" Margin="0,0,8,0" ToolTip="New chat" AutomationProperties.Name="New conversation"/>
      <Button Content="⋯" Style="{StaticResource RoundIconButtonStyle}" Click="DeleteChat_OnClick" ToolTip="Delete conversation" AutomationProperties.Name="Delete conversation"/>
     </WrapPanel>
+    <ItemsControl Grid.Row="2" ItemsSource="{Binding SpeakerFilters}" Margin="0,12,0,0"
+                  Visibility="{Binding HasSpeakerFilters, Converter={StaticResource BoolToVisibility}}">
+      <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+      <ItemsControl.ItemTemplate><DataTemplate>
+        <Button Content="{Binding Label}" Margin="0,0,6,0" Padding="10,4" FontSize="12"
+                ToolTip="只看某个角色说过的内容"
+                Command="{Binding DataContext.SelectSpeakerFilterCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                CommandParameter="{Binding}">
+          <Button.Style>
+            <Style TargetType="Button" BasedOn="{StaticResource GhostButtonStyle}">
+              <Setter Property="Background" Value="{StaticResource CardBrush}"/>
+              <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
+              <Setter Property="BorderThickness" Value="1"/>
+              <Setter Property="Foreground" Value="{StaticResource MutedTextBrush}"/>
+              <Style.Triggers>
+                <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                  <Setter Property="Background" Value="{StaticResource AccentTintBgBrush}"/>
+                  <Setter Property="BorderBrush" Value="{StaticResource AccentTintBorderBrush}"/>
+                  <Setter Property="Foreground" Value="{StaticResource AccentTintTextBrush}"/>
+                  <Setter Property="FontWeight" Value="SemiBold"/>
+                </DataTrigger>
+              </Style.Triggers>
+            </Style>
+          </Button.Style>
+        </Button>
+      </DataTemplate></ItemsControl.ItemTemplate>
+    </ItemsControl>
    </Grid>
   </Border>
 
@@ -65,10 +267,10 @@
      <TextBlock Text="选择角色或直接输入消息，开始一段新的对话" FontSize="13" Foreground="{StaticResource MutedTextBrush}" HorizontalAlignment="Center" Margin="0,8,0,0"/>
     </StackPanel>
    </Grid>
-   <Border Panel.ZIndex="5" Background="#FFF7D6" BorderBrush="#F0D98A" BorderThickness="1" CornerRadius="10" Padding="14" Margin="24,16" VerticalAlignment="Top" MaxWidth="900"
+   <Border Panel.ZIndex="5" Background="{StaticResource WarningSoftBgBrush}" BorderBrush="{StaticResource WarningSoftBorderBrush}" BorderThickness="1" CornerRadius="10" Padding="14" Margin="24,16" VerticalAlignment="Top" MaxWidth="900"
            Visibility="{Binding HasProviderConfiguration, Converter={StaticResource InverseBoolToVisibility}}">
     <DockPanel><Button DockPanel.Dock="Right" Content="Open settings" Command="{Binding OpenSettingsCommand}" Style="{StaticResource PrimaryButtonStyle}" Margin="12,0,0,0"/>
-     <StackPanel><TextBlock Text="Connect a model to start chatting" FontWeight="SemiBold"/><TextBlock Text="Configure a local or cloud provider in Settings." Foreground="#765F18" FontSize="12" Margin="0,3,0,0"/></StackPanel></DockPanel>
+     <StackPanel><TextBlock Text="Connect a model to start chatting" FontWeight="SemiBold"/><TextBlock Text="Configure a local or cloud provider in Settings." Foreground="{StaticResource WarningTextBrush}" FontSize="12" Margin="0,3,0,0"/></StackPanel></DockPanel>
    </Border>
         <ListBox x:Name="MessageList" ItemsSource="{Binding Messages}" Background="Transparent" BorderThickness="0"
                  AutomationProperties.Name="Conversation messages"
@@ -92,6 +294,7 @@
       <Setter Property="HorizontalContentAlignment" Value="Stretch"/><Setter Property="Padding" Value="0"/>
       <Setter Property="Margin" Value="20,0,20,22"/><Setter Property="Background" Value="Transparent"/>
       <Setter Property="Focusable" Value="False"/>
+      <Setter Property="AutomationProperties.Name" Value="{Binding EntryLabel}"/>
       <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ListBoxItem"><ContentPresenter/></ControlTemplate></Setter.Value></Setter>
      </Style>
     </ListBox.ItemContainerStyle>
@@ -107,7 +310,7 @@
            <Ellipse.Fill><ImageBrush ImageSource="{Binding AssistantAvatarPath}" Stretch="UniformToFill"/></Ellipse.Fill>
           </Ellipse>
           <Image x:Name="AssistantBrandIcon" Source="{StaticResource BrandIcon}" Stretch="Uniform" AutomationProperties.Name="NativeTavern"/>
-          <TextBlock x:Name="AvatarLetter" Visibility="Collapsed" Text="Y" Foreground="White" FontWeight="Bold" FontSize="15" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+          <TextBlock x:Name="AvatarLetter" Visibility="Collapsed" Text="Y" Foreground="{StaticResource OnAccentBrush}" FontWeight="Bold" FontSize="15" HorizontalAlignment="Center" VerticalAlignment="Center"/>
          </Grid>
          <Button x:Name="CharacterStatusButton" Content="状态" Tag="{Binding}" Click="CharacterStatus_OnClick"
                  Padding="3,2" Margin="0,5,0,0" FontSize="10"
@@ -161,6 +364,9 @@
           </ItemsControl>
           <StackPanel Orientation="Horizontal" Margin="0,10,0,0" Visibility="{Binding IsStreaming, Converter={StaticResource InverseBoolToVisibility}}">
            <Button Content="Copy" Style="{StaticResource MessageActionButtonStyle}" Tag="{Binding}" Click="CopyMessage_OnClick"/>
+           <Button Content="{Binding PinnedGlyph}" Style="{StaticResource MessageActionButtonStyle}"
+                   Command="{Binding DataContext.TogglePinCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}"
+                   ToolTip="Pin this message" AutomationProperties.Name="Pin message"/>
            <Button Content="Edit" Style="{StaticResource MessageActionButtonStyle}" Command="{Binding DataContext.BeginEditCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}"/>
            <Button Content="Delete" Style="{StaticResource MessageActionButtonStyle}" Tag="{Binding}" Click="DeleteMessage_OnClick"/>
            <Button Content="Branch" Style="{StaticResource MessageActionButtonStyle}"
@@ -168,6 +374,9 @@
                    ToolTip="Create a new conversation from this message"/>
            <StackPanel Orientation="Horizontal" Visibility="{Binding IsAssistant, Converter={StaticResource BoolToVisibility}}">
             <Button Content="Regenerate" Style="{StaticResource MessageActionButtonStyle}" Command="{Binding DataContext.RegenerateCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}"/>
+            <Button Content="续写" Style="{StaticResource MessageActionButtonStyle}"
+                    Command="{Binding DataContext.ContinueLastReplyCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}"
+                    ToolTip="让角色接着这条回复写下去，原来的版本仍可向左翻回" AutomationProperties.Name="Continue reply"/>
             <Button Content="‹" Style="{StaticResource MessageActionButtonStyle}" IsEnabled="{Binding CanSwipeLeft}" Command="{Binding DataContext.SwipeLeftCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" ToolTip="Previous variation"/>
             <TextBlock Text="{Binding SwipeDisplay}" VerticalAlignment="Center" Foreground="{StaticResource MutedTextBrush}" FontSize="11" Margin="2,0,7,0"/>
             <Button Content="›" Style="{StaticResource MessageActionButtonStyle}" Command="{Binding DataContext.SwipeRightCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" ToolTip="Next variation"/>
@@ -199,7 +408,7 @@
         <Setter TargetName="AssistantBrandIcon" Property="Visibility" Value="Collapsed"/>
        </DataTrigger>
        <DataTrigger Binding="{Binding Role}" Value="{x:Static models:ChatRole.User}">
-       <Setter TargetName="AvatarBackground" Property="Fill" Value="#D8DADF"/>
+       <Setter TargetName="AvatarBackground" Property="Fill" Value="{StaticResource NeutralBorderBrush}"/>
         <Setter TargetName="AvatarLetter" Property="Foreground" Value="{StaticResource TextBrush}"/>
         <Setter TargetName="AssistantBrandIcon" Property="Visibility" Value="Collapsed"/>
         <Setter TargetName="AvatarLetter" Property="Visibility" Value="Visible"/>
@@ -214,19 +423,19 @@
   <Grid Grid.Row="2" Margin="24,0,24,18">
    <Grid MaxWidth="820" HorizontalAlignment="Stretch">
     <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-    <Border Background="#FDECEC" BorderBrush="#F4C5C5" BorderThickness="1" CornerRadius="8" Padding="11" Margin="0,0,0,8" Visibility="{Binding ErrorMessage, Converter={StaticResource StringToVisibility}}" AutomationProperties.LiveSetting="Assertive">
-     <TextBlock Text="{Binding ErrorMessage}" Foreground="#B42318" TextWrapping="Wrap"/>
+    <Border Background="{StaticResource DangerSoftBgBrush}" BorderBrush="{StaticResource DangerSoftBorderBrush}" BorderThickness="1" CornerRadius="8" Padding="11" Margin="0,0,0,8" Visibility="{Binding ErrorMessage, Converter={StaticResource StringToVisibility}}" AutomationProperties.LiveSetting="Assertive">
+     <TextBlock Text="{Binding ErrorMessage}" Foreground="{StaticResource DangerTextBrush}" TextWrapping="Wrap"/>
     </Border>
     <StackPanel Grid.Row="1" Margin="0,0,0,9">
-     <Border Background="#F7F7FF" BorderBrush="#DEDDF7" BorderThickness="1" CornerRadius="14" Padding="12,10"
+     <Border Background="{StaticResource AccentTintBgBrush}" BorderBrush="{StaticResource AccentTintBorderBrush}" BorderThickness="1" CornerRadius="14" Padding="12,10"
              Visibility="{Binding HasReplySuggestions, Converter={StaticResource BoolToVisibility}}">
       <StackPanel>
-       <TextBlock Text="✦ 你可以这样回应" Foreground="#5551A8" FontWeight="SemiBold" FontSize="12" Margin="2,0,0,8"/>
+       <TextBlock Text="✦ 你可以这样回应" Foreground="{StaticResource AccentTintTextBrush}" FontWeight="SemiBold" FontSize="12" Margin="2,0,0,8"/>
        <ItemsControl ItemsSource="{Binding ReplySuggestions}">
         <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
         <ItemsControl.ItemTemplate><DataTemplate>
          <Button Command="{Binding DataContext.SelectReplySuggestionCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                 CommandParameter="{Binding}" Background="White" BorderBrush="#D9D8F1" Padding="11,8" Margin="0,0,8,6"
+                 CommandParameter="{Binding}" Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource AccentTintBorderBrush}" Padding="11,8" Margin="0,0,8,6"
                  MaxWidth="245" HorizontalContentAlignment="Left" ToolTip="点击填入输入框">
          <TextBlock Text="{Binding}" TextWrapping="Wrap" FontSize="12" LineHeight="18"/>
          </Button>
@@ -235,7 +444,7 @@
        </ItemsControl>
       </StackPanel>
      </Border>
-     <Border Background="#F7F7F8" CornerRadius="12" Padding="12,8"
+     <Border Background="{StaticResource NeutralBgBrush}" CornerRadius="12" Padding="12,8"
              Visibility="{Binding IsGeneratingSuggestions, Converter={StaticResource BoolToVisibility}}">
       <StackPanel Orientation="Horizontal">
        <ProgressBar Width="42" Height="4" IsIndeterminate="True" VerticalAlignment="Center" Margin="0,0,10,0"/>
@@ -243,25 +452,35 @@
       </StackPanel>
      </Border>
     </StackPanel>
-    <Border Grid.Row="2" Background="White" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="22" Padding="12,9">
+    <Border Grid.Row="2" Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="22" Padding="12,9">
      <Border.Effect><DropShadowEffect Color="#525BD4" BlurRadius="22" ShadowDepth="4" Opacity="0.10"/></Border.Effect>
      <Grid>
-      <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-      <ItemsControl ItemsSource="{Binding PendingImagePaths}" Margin="2,0,0,7">
+      <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+      <StackPanel Grid.Row="0" Margin="2,0,0,7" Visibility="{Binding HasQueuedSends, Converter={StaticResource BoolToVisibility}}">
+       <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+        <TextBlock Text="⏳ 排队待发送" FontSize="11" Foreground="{StaticResource MutedTextBrush}" VerticalAlignment="Center"/>
+        <Button Content="清空" Style="{StaticResource GhostButtonStyle}" FontSize="11" Padding="6,0" Margin="8,0,0,0" Command="{Binding ClearQueuedSendsCommand}" ToolTip="取消全部排队消息"/>
+       </StackPanel>
+       <ItemsControl ItemsSource="{Binding QueuedSends}">
+        <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+        <ItemsControl.ItemTemplate><DataTemplate><Border Background="{StaticResource NeutralBgBrush}" CornerRadius="8" Padding="8,5" Margin="0,0,7,0"><StackPanel Orientation="Horizontal"><TextBlock Text="{Binding Preview}" MaxWidth="260" FontSize="11" Foreground="{StaticResource MutedTextBrush}" TextTrimming="CharacterEllipsis"/><Button Content="×" Style="{StaticResource GhostButtonStyle}" Padding="4,0" Margin="6,0,0,0" Command="{Binding DataContext.CancelQueuedSendCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" ToolTip="取消这条排队消息"/></StackPanel></Border></DataTemplate></ItemsControl.ItemTemplate>
+       </ItemsControl>
+      </StackPanel>
+      <ItemsControl Grid.Row="1" ItemsSource="{Binding PendingImagePaths}" Margin="2,0,0,7">
        <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
-       <ItemsControl.ItemTemplate><DataTemplate><Border Background="#ECEEF0" CornerRadius="8" Padding="8,5" Margin="0,0,7,0"><StackPanel Orientation="Horizontal"><TextBlock Text="{Binding}" MaxWidth="220" FontSize="11" TextTrimming="CharacterEllipsis"/><Button Content="×" Style="{StaticResource GhostButtonStyle}" Padding="4,0" Margin="6,0,0,0" Command="{Binding DataContext.RemovePendingImageCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}"/></StackPanel></Border></DataTemplate></ItemsControl.ItemTemplate>
+       <ItemsControl.ItemTemplate><DataTemplate><Border Background="{StaticResource NeutralBgBrush}" CornerRadius="8" Padding="8,5" Margin="0,0,7,0"><StackPanel Orientation="Horizontal"><TextBlock Text="{Binding}" MaxWidth="220" FontSize="11" TextTrimming="CharacterEllipsis"/><Button Content="×" Style="{StaticResource GhostButtonStyle}" Padding="4,0" Margin="6,0,0,0" Command="{Binding DataContext.RemovePendingImageCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}"/></StackPanel></Border></DataTemplate></ItemsControl.ItemTemplate>
       </ItemsControl>
-      <Grid Grid.Row="1">
+      <Grid Grid.Row="2">
        <TextBox x:Name="ComposerInputBox" Style="{StaticResource ComposerTextBoxStyle}" Padding="9,7" Text="{Binding InputText, UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True" MinHeight="42" MaxHeight="160" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" PreviewKeyDown="InputBox_OnPreviewKeyDown" AllowDrop="True" Drop="InputBox_OnDrop" ToolTip="Message NativeTavern · Enter to send · Shift+Enter for new line" AutomationProperties.Name="Message input"/>
        <TextBlock Text="给 NativeTavern 发送消息" Foreground="{StaticResource MutedTextBrush}" FontSize="15" Margin="9,7" VerticalAlignment="Top" IsHitTestVisible="False">
         <TextBlock.Style><Style TargetType="TextBlock"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding InputText}" Value=""><Setter Property="Visibility" Value="Visible"/></DataTrigger><DataTrigger Binding="{Binding InputText}" Value="{x:Null}"><Setter Property="Visibility" Value="Visible"/></DataTrigger><DataTrigger Binding="{Binding IsKeyboardFocused, ElementName=ComposerInputBox}" Value="True"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers></Style></TextBlock.Style>
        </TextBlock>
       </Grid>
-      <Grid Grid.Row="2" Margin="0,6,0,0">
-       <Button HorizontalAlignment="Left" Content="＋" Style="{StaticResource RoundIconButtonStyle}" Width="32" Height="32" Background="#ECEEF0" BorderThickness="0" Click="AttachImage_OnClick" ToolTip="Attach image" AutomationProperties.Name="Attach image"/>
+      <Grid Grid.Row="3" Margin="0,6,0,0">
+       <Button HorizontalAlignment="Left" Content="＋" Style="{StaticResource RoundIconButtonStyle}" Width="32" Height="32" Background="{StaticResource NeutralBgBrush}" BorderThickness="0" Click="AttachImage_OnClick" ToolTip="Attach image" AutomationProperties.Name="Attach image"/>
        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-        <Button Content="■" Style="{StaticResource RoundIconButtonStyle}" Width="32" Height="32" FontSize="11" Background="#E3E5E8" BorderThickness="0" Command="{Binding StopCommand}" Margin="0,0,8,0" ToolTip="Stop" AutomationProperties.Name="Stop generation"/>
-        <Button Content="↑" Style="{StaticResource RoundIconButtonStyle}" Width="32" Height="32" Background="{StaticResource AccentBrush}" Foreground="White" BorderThickness="0" Command="{Binding SendCommand}" ToolTip="Send" AutomationProperties.Name="Send message"/>
+        <Button Content="■" Style="{StaticResource RoundIconButtonStyle}" Width="32" Height="32" FontSize="11" Background="{StaticResource NeutralBorderBrush}" BorderThickness="0" Command="{Binding StopCommand}" Margin="0,0,8,0" ToolTip="Stop" AutomationProperties.Name="Stop generation"/>
+        <Button Content="↑" Style="{StaticResource RoundIconButtonStyle}" Width="32" Height="32" Background="{StaticResource AccentBrush}" Foreground="{StaticResource OnAccentBrush}" BorderThickness="0" Command="{Binding SendCommand}" ToolTip="Send" AutomationProperties.Name="Send message"/>
        </StackPanel>
       </Grid>
      </Grid>

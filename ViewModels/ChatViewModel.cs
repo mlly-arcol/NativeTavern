@@ -1,5 +1,7 @@
 ﻿using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Windows;
+using System.Windows.Data;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
@@ -13,7 +15,9 @@ namespace NativeTavern.ViewModels;
 public partial class ChatViewModel(
     ChatService chatService,
     PromptRepository promptRepository,
+    ComposerDraftRepository draftRepository,
     SettingsService settingsService,
+    RegexScriptService regexScripts,
     CharacterStatusService characterStatusService,
     ReplySuggestionService replySuggestionService,
     PluginService pluginService,
@@ -22,12 +26,14 @@ public partial class ChatViewModel(
 {
     public ObservableCollection<ChatMessageViewModel> Messages { get; } = [];
     public ObservableCollection<ChatSession> Sessions { get; } = [];
+    public ObservableCollection<string> SessionGroups { get; } = [];
     public ObservableCollection<Persona> Personas { get; } = [];
     public ObservableCollection<Lorebook> Lorebooks { get; } = [];
     public ObservableCollection<PromptPreset> Presets { get; } = [];
     public ObservableCollection<string> PendingImagePaths { get; } = [];
     public ObservableCollection<Character> GroupMembers { get; } = [];
     public ObservableCollection<string> ReplySuggestions { get; } = [];
+    public ObservableCollection<SendQueue.Item> QueuedSends { get; } = [];
 
     [ObservableProperty] private string _inputText = string.Empty;
     [ObservableProperty] private bool _isGenerating;
@@ -47,8 +53,13 @@ public partial class ChatViewModel(
     [ObservableProperty] private bool _isCharacterStatusPluginEnabled;
     [ObservableProperty] private bool _hasReplySuggestions;
     [ObservableProperty] private bool _isGeneratingSuggestions;
+    [ObservableProperty] private bool _hasQueuedSends;
 
     private ChatSession? _session;
+    private readonly DraftStore _drafts = new();
+    private readonly SendQueue _queue = new();
+    private bool _draftHooksWired;
+    private long _draftFlushId;
     private CancellationTokenSource? _generationCancellation;
     private TaskCompletionSource? _generationCompletion;
     private CancellationTokenSource? _suggestionCancellation;
@@ -65,6 +76,13 @@ public partial class ChatViewModel(
     public async Task InitializeAsync()
     {
         pluginService.PluginsChanged += OnPluginsChanged;
+        if (!_draftHooksWired)
+        {
+            _draftHooksWired = true;
+            PendingImagePaths.CollectionChanged += (_, _) => ScheduleDraftFlush();
+        }
+        foreach (var draft in await draftRepository.GetAllAsync())
+            _drafts.Remember(draft.ChatSessionId, DraftStore.Capture(draft.Text, draft.Images));
         var sessions = await chatService.GetSessionsAsync();
         var session = sessions.FirstOrDefault() ?? await chatService.CreateSessionAsync();
         await RefreshPromptOptionsAsync();
@@ -103,6 +121,13 @@ public partial class ChatViewModel(
         SelectedPersona = Personas.FirstOrDefault(x => x.Id == personaId);
         SelectedLorebook = Lorebooks.FirstOrDefault(x => x.Id == lorebookId);
         SelectedPreset = Presets.FirstOrDefault(x => x.Id == presetId);
+        await RefreshSessionGroupsAsync();
+    }
+
+    public async Task RefreshSessionGroupsAsync()
+    {
+        SessionGroups.Clear();
+        foreach (var name in await chatService.GetSessionGroupsAsync()) SessionGroups.Add(name);
     }
 
     [RelayCommand]
@@ -111,8 +136,19 @@ public partial class ChatViewModel(
         if (_session is null || IsGenerating) return;
         await chatService.UpdateSessionPromptAsync(
             _session, SelectedPersona?.Id, SelectedLorebook?.Id, SelectedPreset?.Id, AuthorNote.Trim());
-        ErrorMessage = null;
+        try
+        {
+            await chatService.SetSessionGroupAsync(_session, SessionGroup);
+            SessionGroup = _session.GroupName;
+            ErrorMessage = null;
+        }
+        catch (InvalidOperationException ex)
+        {
+            SessionGroup = _session.GroupName;
+            ErrorMessage = ex.Message;
+        }
         await RefreshSessionsAsync(_session.Id);
+        await RefreshSessionGroupsAsync();
         await RefreshTokenEstimateAsync();
     }
 
@@ -130,13 +166,24 @@ public partial class ChatViewModel(
         Persona? persona,
         Lorebook? lorebook,
         PromptPreset? preset,
-        string authorNote)
+        string authorNote,
+        string groupName)
     {
         SelectedPersona = persona;
         SelectedLorebook = lorebook;
         SelectedPreset = preset;
         AuthorNote = authorNote;
+        SessionGroup = groupName;
         await ApplyPromptContextAsync();
+    }
+
+    [RelayCommand]
+    private async Task ToggleSessionPinAsync()
+    {
+        if (_session is null) return;
+        await chatService.SetSessionPinnedAsync(_session, !_session.IsPinned);
+        IsCurrentSessionPinned = _session.IsPinned;
+        await RefreshSessionsAsync(_session.Id);
     }
 
     public async Task StartCharacterChatAsync(Character character)
@@ -253,6 +300,22 @@ public partial class ChatViewModel(
         var images = PendingImagePaths.ToArray();
         InputText = string.Empty;
         PendingImagePaths.Clear();
+        CancelDraftFlush();
+        await FlushDraftAsync(_session.Id, DraftStore.Draft.Empty);
+        var sessionId = _session.Id;
+        // A reply is still being written, so hold the message until the conversation is free again.
+        if (IsGenerating)
+        {
+            _queue.Enqueue(sessionId, new SendQueue.Item(input, images));
+            RefreshQueuedSends();
+            return;
+        }
+        await SendNowAsync(sessionId, input, images);
+    }
+
+    private async Task SendNowAsync(long sessionId, string input, IReadOnlyList<string> images)
+    {
+        if (_session is null || _session.Id != sessionId) return;
         using var cancellation = BeginGeneration();
         ChatMessageViewModel? assistantViewModel = null;
         try
@@ -262,7 +325,7 @@ public partial class ChatViewModel(
                 async (user, assistant) =>
                 {
                     var attachments = await chatService.GetAttachmentsAsync(user.Id);
-                    await Application.Current.Dispatcher.InvokeAsync(() =>
+                    await OnUiAsync(() =>
                     {
                         Messages.Add(new ChatMessageViewModel(user, attachments: attachments));
                         var speaker = GroupMembers.FirstOrDefault(x => x.Id == assistant.SpeakerCharacterId);
@@ -278,7 +341,7 @@ public partial class ChatViewModel(
                 },
                 async (_, chunk) =>
                 {
-                    await Application.Current.Dispatcher.InvokeAsync(() =>
+                    await OnUiAsync(() =>
                     {
                         if (assistantViewModel is not null) assistantViewModel.Content += chunk;
                     });
@@ -316,8 +379,53 @@ public partial class ChatViewModel(
                     Messages.Remove(assistantViewModel);
                 }
             }
-            finally { EndGeneration(cancellation); }
+            finally
+            {
+                EndGeneration(cancellation);
+                RefreshQueuedSends();
+                _ = DrainQueueAsync(sessionId);
+            }
         }
+    }
+
+    /// Streaming callbacks arrive on background tasks and WPF only accepts collection changes from the
+    /// UI thread. With no Application - in tests or at design time - running the update inline is the
+    /// same thing, and it keeps this view model reachable without a window.
+    private static Task OnUiAsync(Action update) =>
+        Application.Current is { } app ? app.Dispatcher.InvokeAsync(update).Task : Task.Run(update);
+
+    /// Sends the next queued message once the conversation is idle again, one at a time so each reply
+    /// can stream before the following message is posted.
+    private async Task DrainQueueAsync(long sessionId)
+    {
+        if (_session?.Id != sessionId || IsGenerating || _isDeletingSession) return;
+        if (_queue.Dequeue(sessionId) is not SendQueue.Item item) return;
+        RefreshQueuedSends();
+        await SendNowAsync(sessionId, item.Text, item.Images);
+    }
+
+    private void RefreshQueuedSends()
+    {
+        QueuedSends.Clear();
+        if (_session is not null)
+            foreach (var item in _queue.For(_session.Id)) QueuedSends.Add(item);
+        HasQueuedSends = QueuedSends.Count > 0;
+    }
+
+    [RelayCommand]
+    private void CancelQueuedSend(SendQueue.Item? item)
+    {
+        if (_session is null || item is null) return;
+        _queue.Remove(_session.Id, item);
+        RefreshQueuedSends();
+    }
+
+    [RelayCommand]
+    private void ClearQueuedSends()
+    {
+        if (_session is null) return;
+        _queue.Clear(_session.Id);
+        RefreshQueuedSends();
     }
 
     [RelayCommand(CanExecute = nameof(CanStop))]
@@ -341,7 +449,7 @@ public partial class ChatViewModel(
                 async assistant =>
                 {
                     var speaker = GroupMembers.FirstOrDefault(x => x.Id == assistant.SpeakerCharacterId);
-                    await Application.Current.Dispatcher.InvokeAsync(() =>
+                    await OnUiAsync(() =>
                     {
                         assistantViewModel = new ChatMessageViewModel(
                             assistant,
@@ -352,7 +460,7 @@ public partial class ChatViewModel(
                         Messages.Add(assistantViewModel);
                     });
                 },
-                async (_, chunk) => await Application.Current.Dispatcher.InvokeAsync(() =>
+                async (_, chunk) => await OnUiAsync(() =>
                 {
                     if (assistantViewModel is not null) assistantViewModel.Content += chunk;
                 }),
@@ -411,6 +519,9 @@ public partial class ChatViewModel(
 
             var deletedId = _session?.Id;
             if (deletedId is null) return;
+            CancelDraftFlush();
+            _drafts.Forget(deletedId.Value);
+            _queue.Clear(deletedId.Value);
             Interlocked.Increment(ref _sessionLoadRequestId);
             ClearReplySuggestions();
             await chatService.DeleteSessionAsync(deletedId.Value);
@@ -435,6 +546,69 @@ public partial class ChatViewModel(
             }
         }
         finally { _isDeletingSession = false; }
+    }
+
+    [ObservableProperty] private string _searchQuery = string.Empty;
+    [ObservableProperty] private bool _isSearchOpen;
+    [ObservableProperty] private bool _hasSearchResults;
+    [ObservableProperty] private bool _isSearching;
+
+    public ObservableCollection<MessageSearchResult> SearchResults { get; } = [];
+
+    /// <summary>Raised after a search result's conversation is loaded so the view can scroll to the hit.</summary>
+    public event Action<long>? JumpToMessageRequested;
+
+    [RelayCommand]
+    private async Task SearchMessagesAsync()
+    {
+        var query = SearchQuery.Trim();
+        SearchResults.Clear();
+        HasSearchResults = false;
+        if (query.Length < 2)
+        {
+            IsSearchOpen = false;
+            return;
+        }
+
+        IsSearching = true;
+        IsSearchOpen = true;
+        try
+        {
+            foreach (var result in await chatService.SearchMessagesAsync(query, 30)) SearchResults.Add(result);
+            HasSearchResults = SearchResults.Count > 0;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Conversation search failed.");
+        }
+        finally
+        {
+            IsSearching = false;
+        }
+    }
+
+    [RelayCommand]
+    private void ClearSearch()
+    {
+        SearchQuery = string.Empty;
+        SearchResults.Clear();
+        HasSearchResults = false;
+        IsSearchOpen = false;
+    }
+
+    [RelayCommand]
+    private async Task OpenSearchResultAsync(MessageSearchResult? result)
+    {
+        if (result is null) return;
+        var session = Sessions.FirstOrDefault(x => x.Id == result.ChatSessionId);
+        if (session is null) return;
+        if (!ReferenceEquals(session, SelectedSession)) SelectedSession = session;
+        // Selecting a session loads it asynchronously; wait for that to settle before scrolling.
+        for (var attempt = 0; attempt < 80 && !ReferenceEquals(_session, session); attempt++)
+            await Task.Delay(25);
+        ClearSearch();
+        if (Messages.FirstOrDefault(x => x.Model.Id == result.MessageId) is { } target) ClearSpeakerFilterIfNeeded(target);
+        JumpToMessageRequested?.Invoke(result.MessageId);
     }
 
     [RelayCommand]
@@ -471,8 +645,233 @@ public partial class ChatViewModel(
         if (IsGenerating) return;
         await chatService.DeleteMessageAsync(message.Model.Id);
         Messages.Remove(message);
+        RefreshPinnedMessages();
         ErrorMessage = null;
     }
+
+    [ObservableProperty] private bool _hasPinnedMessages;
+    [ObservableProperty] private bool _isPinnedListOpen;
+    [ObservableProperty] private bool _isStorySummaryOpen;
+    [ObservableProperty] private bool _hasStorySummary;
+    [ObservableProperty] private bool _isStorySummaryManual;
+    [ObservableProperty] private int _storySummaryCoveredCount;
+    public ObservableCollection<SpeakerFilterOption> SpeakerFilters { get; } = [];
+    [ObservableProperty] private SpeakerFilterOption? _selectedSpeakerFilter;
+    [ObservableProperty] private bool _hasSpeakerFilters;
+    [ObservableProperty] private bool _isCurrentSessionPinned;
+    [ObservableProperty] private string _sessionGroup = string.Empty;
+    [ObservableProperty] private string _storySummary = string.Empty;
+    [ObservableProperty] private string _storySummaryStatus = string.Empty;
+
+    public ObservableCollection<ChatMessageViewModel> PinnedMessages { get; } = [];
+
+    [ObservableProperty] private bool _isStatsOpen;
+    [ObservableProperty] private IReadOnlyList<StatLine> _statLines = [];
+    [ObservableProperty] private bool _hasSpeakerShares;
+    [ObservableProperty] private bool _hasRepeatedPhrases;
+    public ObservableCollection<SpeakerShare> SpeakerShares { get; } = [];
+    public ObservableCollection<RepeatedPhrase> RepeatedPhrases { get; } = [];
+    private long _phraseScanId;
+
+    [RelayCommand]
+    private void OpenStats()
+    {
+        var written = Messages.Where(x => !x.IsStreaming).ToList();
+        StatLines = ConversationStatistics.BuildLines(
+            written, written.FirstOrDefault()?.Model.CreatedAt, written.LastOrDefault()?.Model.CreatedAt);
+        SpeakerShares.Clear();
+        foreach (var share in ConversationStatistics.BuildSpeakerShares(written)) SpeakerShares.Add(share);
+        HasSpeakerShares = SpeakerShares.Count > 1;
+        IsStatsOpen = true;
+        // Scanning every reply for pet phrases is the slow part of this panel, so the numbers appear
+        // first and the phrases follow once the scan finishes off the UI thread.
+        _ = FindRepeatedPhrasesAsync(written.Where(x => x.IsAssistant).Select(x => x.Content).ToArray());
+    }
+
+    private async Task FindRepeatedPhrasesAsync(string[] replies)
+    {
+        var requestId = Interlocked.Increment(ref _phraseScanId);
+        RepeatedPhrases.Clear();
+        HasRepeatedPhrases = false;
+        var found = await Task.Run(() => RepeatedPhraseFinder.Find(replies));
+        if (requestId != Volatile.Read(ref _phraseScanId)) return;
+        await OnUiAsync(() =>
+        {
+            foreach (var phrase in found) RepeatedPhrases.Add(phrase);
+            HasRepeatedPhrases = RepeatedPhrases.Count > 0;
+        });
+    }
+
+    /// Turning a tic into a rewrite rule is the point of spotting it, so one click removes the phrase
+    /// from everything the model writes from now on.
+    [RelayCommand]
+    private async Task CreateRewriteRuleAsync(RepeatedPhrase? phrase)
+    {
+        if (phrase is null) return;
+        var existing = await regexScripts.GetScriptsAsync();
+        if (existing.Any(x => x.Target == RegexScriptTarget.AssistantOutput && x.Pattern == phrase.Phrase))
+        {
+            ErrorMessage = $"已经有规则在处理「{phrase.Phrase}」了，可到提示词工作室的文案脚本里修改它。";
+            return;
+        }
+        var now = DateTimeOffset.UtcNow;
+        await regexScripts.SaveAsync(new RegexScript
+        {
+            Name = $"去掉「{phrase.Phrase}」",
+            Pattern = phrase.Phrase,
+            Replacement = string.Empty,
+            Target = RegexScriptTarget.AssistantOutput,
+            Mode = RegexScriptMode.Literal,
+            IsEnabled = true,
+            CreatedAt = now,
+            UpdatedAt = now
+        });
+        ErrorMessage = null;
+    }
+
+    [RelayCommand]
+    private async Task TogglePinAsync(ChatMessageViewModel? message)
+    {
+        if (message is null || IsGenerating) return;
+        message.IsPinned = !message.IsPinned;
+        await chatService.SetMessagePinnedAsync(message.Model, message.IsPinned);
+        RefreshPinnedMessages();
+        ErrorMessage = null;
+    }
+
+    [RelayCommand]
+    private void OpenPinnedList()
+    {
+        RefreshPinnedMessages();
+        IsPinnedListOpen = HasPinnedMessages;
+    }
+
+    [RelayCommand]
+    private void JumpToPinned(ChatMessageViewModel? message)
+    {
+        if (message is null) return;
+        IsPinnedListOpen = false;
+        ClearSpeakerFilterIfNeeded(message);
+        JumpToMessageRequested?.Invoke(message.Model.Id);
+    }
+
+    partial void OnSelectedSpeakerFilterChanged(SpeakerFilterOption? value)
+    {
+        MessagesView.Filter = message => message is not ChatMessageViewModel item
+                                         || value?.CharacterId is not long id
+                                         || SpeakerKeyOf(item) == id;
+        MessagesView.Refresh();
+        HasSpeakerFilters = SpeakerFilters.Count > 1;
+        foreach (var option in SpeakerFilters) option.IsSelected = ReferenceEquals(option, value) || option.CharacterId == value?.CharacterId;
+    }
+
+    [RelayCommand]
+    private void SelectSpeakerFilter(SpeakerFilterOption? option) =>
+        SelectedSpeakerFilter = option is null || option.CharacterId is null ? null : option;
+
+    /// <summary>A message's speaker: group turns carry their own, single chats fall back to the session character.</summary>
+    private long? SpeakerKeyOf(ChatMessageViewModel message) =>
+        message.IsAssistant ? message.CharacterId ?? _session?.CharacterId : null;
+
+    private ICollectionView MessagesView => CollectionViewSource.GetDefaultView(Messages);
+
+    /// <summary>A jump should land on its message, so a filter that hides it is lifted first.</summary>
+    private void ClearSpeakerFilterIfNeeded(ChatMessageViewModel message)
+    {
+        if (SelectedSpeakerFilter?.CharacterId is long id && SpeakerKeyOf(message) != id) SelectedSpeakerFilter = null;
+    }
+
+    private void RebuildSpeakerFilters()
+    {
+        var speakers = Messages
+            .Select(SpeakerKeyOf)
+            .Where(id => id is not null)
+            .Distinct()
+            .ToDictionary(id => id!.Value, id => Messages.First(x => SpeakerKeyOf(x) == id).RoleLabel);
+        HasSpeakerFilters = speakers.Count > 1;
+        if (speakers.Count == SpeakerFilters.Count - 1 &&
+            SpeakerFilters.Skip(1).All(option => speakers.ContainsKey(option.CharacterId!.Value))) return;
+        var selected = SelectedSpeakerFilter?.CharacterId;
+        SpeakerFilters.Clear();
+        SpeakerFilters.Add(new SpeakerFilterOption(null, "全部") { IsSelected = selected is null });
+        foreach (var speaker in speakers)
+            SpeakerFilters.Add(new SpeakerFilterOption(speaker.Key, speaker.Value) { IsSelected = selected == speaker.Key });
+        if (selected is not null && !speakers.ContainsKey(selected.Value)) SelectedSpeakerFilter = null;
+    }
+
+    private void RefreshPinnedMessages()
+    {
+        PinnedMessages.Clear();
+        RebuildSpeakerFilters();
+        foreach (var message in Messages.Where(x => x.IsPinned)) PinnedMessages.Add(message);
+        HasPinnedMessages = PinnedMessages.Count > 0;
+        if (!HasPinnedMessages) IsPinnedListOpen = false;
+    }
+
+    [RelayCommand]
+    private void OpenStorySummary()
+    {
+        if (_session is null) return;
+        StorySummary = _session.Summary;
+        StorySummaryStatus = string.Empty;
+        RefreshStorySummaryState();
+        IsStorySummaryOpen = true;
+    }
+
+    [RelayCommand]
+    private async Task SaveStorySummaryAsync()
+    {
+        if (_session is null) return;
+        try
+        {
+            await chatService.SaveStorySummaryAsync(_session, StorySummary);
+            RefreshStorySummaryState();
+            StorySummaryStatus = HasStorySummary
+                ? "已保存，自动摘要暂停；点“重新生成”可恢复。"
+                : "已清空剧情回顾。";
+        }
+        catch (Exception ex) when (ex is InvalidOperationException)
+        {
+            StorySummaryStatus = ex.Message;
+        }
+    }
+
+    [RelayCommand]
+    private async Task RebuildStorySummaryAsync()
+    {
+        if (_session is null || IsGenerating) return;
+        await chatService.RebuildStorySummaryAsync(_session);
+        StorySummary = _session.Summary;
+        RefreshStorySummaryState();
+        StorySummaryStatus = HasStorySummary
+            ? $"已根据最早的 {StorySummaryCoveredCount} 条消息重新整理。"
+            : "消息还不够多，暂时没有可整理的早期剧情。";
+    }
+
+    [RelayCommand]
+    private async Task ClearStorySummaryAsync()
+    {
+        if (_session is null) return;
+        await chatService.ClearStorySummaryAsync(_session);
+        StorySummary = string.Empty;
+        RefreshStorySummaryState();
+        StorySummaryStatus = "已清空，后续回复会重新自动生成。";
+    }
+
+    private void RefreshStorySummaryState()
+    {
+        if (_session is null) return;
+        HasStorySummary = !string.IsNullOrWhiteSpace(_session.Summary);
+        IsStorySummaryManual = _session.SummaryIsManual;
+        StorySummaryCoveredCount = _session.SummaryCoveredCount;
+        OnPropertyChanged(nameof(StorySummaryCoverage));
+    }
+
+    public string StorySummaryCoverage => StorySummaryCoveredCount == 0
+        ? "还没有整理过早期剧情，模型目前只看到最近的对话。"
+        : IsStorySummaryManual
+            ? $"手动编辑中，自动整理已暂停（已覆盖最早 {StorySummaryCoveredCount} 条消息）"
+            : $"自动整理，已覆盖最早 {StorySummaryCoveredCount} 条消息";
 
     [RelayCommand]
     private async Task SwipeLeftAsync(ChatMessageViewModel? message)
@@ -499,6 +898,58 @@ public partial class ChatViewModel(
     {
         var last = Messages.LastOrDefault(x => x.IsAssistant);
         return last is null ? Task.CompletedTask : GenerateAlternativeCoreAsync(last);
+    }
+
+    [RelayCommand(CanExecute = nameof(CanContinueLastReply))]
+    private Task ContinueLastReplyAsync(ChatMessageViewModel? message) =>
+        message is null ? Task.CompletedTask : ContinueReplyAsync(message);
+
+    private bool CanContinueLastReply() => !IsGenerating && HasProviderConfiguration && _session is not null;
+
+    private async Task ContinueReplyAsync(ChatMessageViewModel message)
+    {
+        if (_session is null || IsGenerating || !message.IsAssistant) return;
+        if (!ReferenceEquals(message, Messages.LastOrDefault()))
+        {
+            ErrorMessage = "只能续写最后一条助手回复。";
+            return;
+        }
+        if (string.IsNullOrWhiteSpace(message.Content))
+        {
+            ErrorMessage = "这条回复还没有内容，请先重新生成。";
+            return;
+        }
+
+        ErrorMessage = null;
+        using var cancellation = BeginGeneration();
+        message.IsStreaming = true;
+        try
+        {
+            var result = await chatService.ContinueAssistantAsync(
+                _session, message.Model,
+                async content => await OnUiAsync(() => message.Content = content),
+                cancellation.Token);
+            message.SetSwipeState(result.Message.CurrentSwipeIndex, result.SwipeCount, result.Message.Content);
+            await RefreshReplySuggestionsAsync(cancellation.Token);
+            await UpdateCharacterStatusAsync(message.Model, cancellation.Token);
+            await RefreshSessionsAsync(_session.Id);
+        }
+        catch (ProviderException ex) { ErrorMessage = ex.Message; }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Continuing the reply failed.");
+            ErrorMessage = "续写失败，请查看日志后重试。";
+        }
+        finally
+        {
+            message.IsStreaming = false;
+            try
+            {
+                var count = await chatService.GetSwipeCountAsync(message.Model);
+                message.SetSwipeState(message.Model.CurrentSwipeIndex, count, message.Content);
+            }
+            finally { EndGeneration(cancellation); }
+        }
     }
 
     [RelayCommand]
@@ -610,7 +1061,7 @@ public partial class ChatViewModel(
         {
             var result = await chatService.GenerateAlternativeAsync(
                 _session, message.Model,
-                async content => await Application.Current.Dispatcher.InvokeAsync(() => message.Content = content),
+                async content => await OnUiAsync(() => message.Content = content),
                 cancellation.Token);
             message.SetSwipeState(result.Message.CurrentSwipeIndex, result.SwipeCount, result.Message.Content);
             await RefreshReplySuggestionsAsync(cancellation.Token);
@@ -638,6 +1089,13 @@ public partial class ChatViewModel(
     private async Task LoadSessionAsync(ChatSession session)
     {
         var requestId = Interlocked.Increment(ref _sessionLoadRequestId);
+        var composerAtLoadStart = DraftStore.Capture(InputText, PendingImagePaths);
+        _drafts.OnLoadStarted(_session?.Id, composerAtLoadStart);
+        if (_session?.Id is long outgoing && outgoing != session.Id)
+        {
+            CancelDraftFlush();
+            await FlushDraftAsync(outgoing, composerAtLoadStart);
+        }
         var members = session.IsGroupChat
             ? await chatService.GetGroupMembersAsync(session.Id)
             : [];
@@ -645,17 +1103,15 @@ public partial class ChatViewModel(
             ? await chatService.GetCharacterAsync(characterId) : null;
         var assistantName = character?.Name ?? "NativeTavern";
         var assistantAvatarPath = character?.AvatarPath ?? string.Empty;
+        var bundle = await chatService.GetSessionBundleAsync(session.Id);
         var messageViewModels = new List<ChatMessageViewModel>();
-        foreach (var message in await chatService.GetMessagesAsync(session.Id))
+        foreach (var message in bundle.Messages)
         {
-            var countTask = chatService.GetSwipeCountAsync(message);
-            var attachmentsTask = chatService.GetAttachmentsAsync(message.Id);
-            await Task.WhenAll(countTask, attachmentsTask);
             var speaker = members.FirstOrDefault(x => x.Id == message.SpeakerCharacterId);
             messageViewModels.Add(new ChatMessageViewModel(
                 message,
-                await countTask,
-                await attachmentsTask,
+                bundle.SwipeCountFor(message.Id),
+                bundle.AttachmentsFor(message.Id),
                 speaker?.Name ?? assistantName,
                 speaker?.AvatarPath ?? assistantAvatarPath,
                 message.SpeakerCharacterId ?? session.CharacterId));
@@ -678,14 +1134,31 @@ public partial class ChatViewModel(
         SelectedLorebook = Lorebooks.FirstOrDefault(x => x.Id == session.LorebookId);
         SelectedPreset = Presets.FirstOrDefault(x => x.Id == session.PromptPresetId);
         AuthorNote = session.AuthorNote;
+        StorySummary = session.Summary;
+        IsCurrentSessionPinned = session.IsPinned;
+        SessionGroup = session.GroupName;
+        StorySummaryStatus = string.Empty;
+        IsStorySummaryOpen = false;
+        IsStatsOpen = false;
+        var draft = _drafts.OnLoadFinished(
+            session.Id, composerAtLoadStart, DraftStore.Capture(InputText, PendingImagePaths));
+        InputText = draft.Text;
+        PendingImagePaths.Clear();
+        // Attachments are files on disk, and a draft can outlive them.
+        foreach (var image in draft.Images.Where(File.Exists)) PendingImagePaths.Add(image);
+        RefreshStorySummaryState();
         Messages.Clear();
         foreach (var message in messageViewModels) Messages.Add(message);
+        RefreshPinnedMessages();
         EstimatedPromptTokens = estimatedTokens;
         NextSpeakerCommand.NotifyCanExecuteChanged();
         BranchFromMessageCommand.NotifyCanExecuteChanged();
         OpenParentConversationCommand.NotifyCanExecuteChanged();
+        RefreshQueuedSends();
         if (Messages.LastOrDefault()?.IsAssistant == true)
             _ = RefreshReplySuggestionsAsync();
+        // Messages queued earlier go out now that this conversation is on screen and idle.
+        _ = DrainQueueAsync(session.Id);
     }
 
     private async Task RefreshSessionsAsync(long selectedId)
@@ -721,7 +1194,9 @@ public partial class ChatViewModel(
         _generationCompletion = null;
     }
 
-    private bool CanSend() => !IsGenerating && HasProviderConfiguration &&
+    /// Sending during generation is allowed on purpose: the message joins the queue instead of being
+    /// swallowed by a disabled button.
+    private bool CanSend() => HasProviderConfiguration &&
                               (!string.IsNullOrWhiteSpace(InputText) || PendingImagePaths.Count > 0);
     private bool CanStop() => IsGenerating;
     private bool CanCreateChat() => !IsGenerating;
@@ -785,7 +1260,37 @@ public partial class ChatViewModel(
         catch { return 0; }
     }
 
-    partial void OnInputTextChanged(string value) => SendCommand.NotifyCanExecuteChanged();
+    partial void OnInputTextChanged(string value)
+    {
+        SendCommand.NotifyCanExecuteChanged();
+        ScheduleDraftFlush();
+    }
+
+    /// Drafts reach the database when typing pauses rather than on every keystroke.
+    private void ScheduleDraftFlush()
+    {
+        if (_session?.Id is not long sessionId) return;
+        var flushId = Interlocked.Increment(ref _draftFlushId);
+        var draft = DraftStore.Capture(InputText, PendingImagePaths);
+        _ = FlushDraftWhenIdleAsync(flushId, sessionId, draft);
+    }
+
+    /// Drops a flush that is still waiting, so nothing resurrects a draft the composer no longer owns.
+    private void CancelDraftFlush() => Interlocked.Increment(ref _draftFlushId);
+
+    private async Task FlushDraftWhenIdleAsync(long flushId, long sessionId, DraftStore.Draft draft)
+    {
+        await Task.Delay(800);
+        if (flushId != Volatile.Read(ref _draftFlushId)) return;
+        await FlushDraftAsync(sessionId, draft);
+    }
+
+    private async Task FlushDraftAsync(long sessionId, DraftStore.Draft draft)
+    {
+        _drafts.Remember(sessionId, draft);
+        try { await draftRepository.SaveAsync(sessionId, draft.Text, draft.Images); }
+        catch (Exception ex) { logger.LogError(ex, "Saving an unsent draft failed."); }
+    }
     partial void OnIsGeneratingChanged(bool value)
     {
         SendCommand.NotifyCanExecuteChanged();

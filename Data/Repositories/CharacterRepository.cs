@@ -9,8 +9,8 @@ public sealed class CharacterRepository(DatabaseConnectionFactory connectionFact
     {
         await using var connection = connectionFactory.CreateConnection();
         character.Id = await connection.ExecuteScalarAsync<long>(
-            "INSERT INTO Characters(Name,Description,Personality,Scenario,FirstMessage,ExampleMessages,Creator,Tags,GroupName,IsFavorite,AvatarPath,CreatedAt,UpdatedAt) " +
-            "VALUES(@Name,@Description,@Personality,@Scenario,@FirstMessage,@ExampleMessages,@Creator,@Tags,@GroupName,@IsFavorite,@AvatarPath,@CreatedAt,@UpdatedAt); SELECT last_insert_rowid();",
+            "INSERT INTO Characters(Name,Description,Personality,Scenario,FirstMessage,ExampleMessages,Creator,Tags,GroupName,Aliases,IsFavorite,AvatarPath,CreatedAt,UpdatedAt) " +
+            "VALUES(@Name,@Description,@Personality,@Scenario,@FirstMessage,@ExampleMessages,@Creator,@Tags,@GroupName,@Aliases,@IsFavorite,@AvatarPath,@CreatedAt,@UpdatedAt); SELECT last_insert_rowid();",
             ToParameters(character));
         return character.Id;
     }
@@ -20,7 +20,7 @@ public sealed class CharacterRepository(DatabaseConnectionFactory connectionFact
         await using var connection = connectionFactory.CreateConnection();
         await connection.ExecuteAsync(
             "UPDATE Characters SET Name=@Name,Description=@Description,Personality=@Personality,Scenario=@Scenario,FirstMessage=@FirstMessage," +
-            "ExampleMessages=@ExampleMessages,Creator=@Creator,Tags=@Tags,GroupName=@GroupName,IsFavorite=@IsFavorite,AvatarPath=@AvatarPath,UpdatedAt=@UpdatedAt WHERE Id=@Id",
+            "ExampleMessages=@ExampleMessages,Creator=@Creator,Tags=@Tags,GroupName=@GroupName,Aliases=@Aliases,IsFavorite=@IsFavorite,AvatarPath=@AvatarPath,UpdatedAt=@UpdatedAt WHERE Id=@Id",
             ToParameters(character));
     }
 
@@ -64,7 +64,7 @@ public sealed class CharacterRepository(DatabaseConnectionFactory connectionFact
         var pattern = "%" + (query ?? string.Empty).Trim() + "%";
         var rows = await connection.QueryAsync<CharacterRow>(
             "SELECT * FROM Characters WHERE (@favoritesOnly=0 OR IsFavorite=1) " +
-            "AND (@pattern='%%' OR Name LIKE @pattern OR Tags LIKE @pattern OR Description LIKE @pattern) " +
+            "AND (@pattern='%%' OR Name LIKE @pattern OR Tags LIKE @pattern OR Description LIKE @pattern OR Aliases LIKE @pattern) "+
             "ORDER BY IsFavorite DESC, UpdatedAt DESC",
             new { favoritesOnly = favoritesOnly ? 1 : 0, pattern });
         return rows.Select(x => x.ToModel()).ToList();
@@ -144,7 +144,7 @@ public sealed class CharacterRepository(DatabaseConnectionFactory connectionFact
     private static object ToParameters(Character value) => new
     {
         value.Id, value.Name, value.Description, value.Personality, value.Scenario,
-        value.FirstMessage, value.ExampleMessages, value.Creator, value.Tags, value.GroupName,
+        value.FirstMessage, value.ExampleMessages, value.Creator, value.Tags, value.GroupName, value.Aliases,
         IsFavorite = value.IsFavorite ? 1 : 0, value.AvatarPath,
         CreatedAt = value.CreatedAt.ToString("O"), UpdatedAt = value.UpdatedAt.ToString("O")
     };
@@ -161,6 +161,7 @@ public sealed class CharacterRepository(DatabaseConnectionFactory connectionFact
         public string Creator { get; init; } = string.Empty;
         public string Tags { get; init; } = string.Empty;
         public string GroupName { get; init; } = string.Empty;
+        public string Aliases { get; init; } = string.Empty;
         public int IsFavorite { get; init; }
         public string AvatarPath { get; init; } = string.Empty;
         public string CreatedAt { get; init; } = string.Empty;
@@ -169,7 +170,7 @@ public sealed class CharacterRepository(DatabaseConnectionFactory connectionFact
         {
             Id = Id, Name = Name, Description = Description, Personality = Personality,
             Scenario = Scenario, FirstMessage = FirstMessage, ExampleMessages = ExampleMessages,
-            Creator = Creator, Tags = Tags, GroupName = GroupName, IsFavorite = IsFavorite != 0, AvatarPath = AvatarPath,
+            Creator = Creator, Tags = Tags, GroupName = GroupName, Aliases = Aliases, IsFavorite = IsFavorite != 0, AvatarPath = AvatarPath,
             CreatedAt = DateTimeOffset.Parse(CreatedAt), UpdatedAt = DateTimeOffset.Parse(UpdatedAt)
         };
     }

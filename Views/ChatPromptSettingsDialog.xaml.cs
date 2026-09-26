@@ -16,12 +16,14 @@ public partial class ChatPromptSettingsDialog : Window
         LorebookBox.SelectedItem = viewModel.SelectedLorebook;
         PresetBox.SelectedItem = viewModel.SelectedPreset;
         AuthorNoteBox.Text = viewModel.AuthorNote;
+        SessionGroupBox.Text = viewModel.SessionGroup;
     }
 
     public Persona? SelectedPersona => PersonaBox.SelectedItem as Persona;
     public Lorebook? SelectedLorebook => LorebookBox.SelectedItem as Lorebook;
     public PromptPreset? SelectedPreset => PresetBox.SelectedItem as PromptPreset;
     public string AuthorNote => AuthorNoteBox.Text.Trim();
+    public string GroupName => SessionGroupBox.Text.Trim();
 
     public static ChatPromptSettingsDialog? Show(DependencyObject source, ChatViewModel viewModel)
     {

@@ -54,7 +54,8 @@ public partial class MainWindow : Window
         if (DataContext is not MainViewModel viewModel) return;
         if (Keyboard.Modifiers == ModifierKeys.Control && e.Key == Key.N)
         {
-            viewModel.Chat.NewChatCommand.Execute(null); e.Handled = true;
+            if (viewModel.NewChatCommand.CanExecute(null)) viewModel.NewChatCommand.Execute(null);
+            e.Handled = true;
         }
         else if (Keyboard.Modifiers == (ModifierKeys.Control | ModifierKeys.Shift) && e.Key == Key.P)
         {

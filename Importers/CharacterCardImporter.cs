@@ -40,6 +40,7 @@ public sealed class CharacterCardImporter
             FirstMessage = ReadString(data, "first_mes"),
             ExampleMessages = ReadString(data, "mes_example"),
             Creator = ReadString(data, "creator"),
+            Aliases = ReadAliases(data),
             Tags = ReadTags(data)
         };
         if (string.IsNullOrWhiteSpace(character.Name))
@@ -90,6 +91,19 @@ public sealed class CharacterCardImporter
     private static string ReadString(JsonElement data, string name) =>
         data.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String
             ? value.GetString() ?? string.Empty : string.Empty;
+
+    private static string ReadAliases(JsonElement data)
+    {
+        var names = new List<string>();
+        if (data.ValueKind != JsonValueKind.Object) return string.Empty;
+        if (data.TryGetProperty("nickname", out var nickname) && nickname.ValueKind == JsonValueKind.String)
+            names.Add(nickname.GetString()?.Trim() ?? string.Empty);
+        if (data.TryGetProperty("alt_names", out var alternatives) && alternatives.ValueKind == JsonValueKind.Array)
+            names.AddRange(alternatives.EnumerateArray()
+                .Where(x => x.ValueKind == JsonValueKind.String)
+                .Select(x => x.GetString()?.Trim() ?? string.Empty));
+        return string.Join(", ", names.Where(x => x.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase));
+    }
 
     private static string ReadTags(JsonElement data)
     {

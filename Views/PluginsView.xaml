@@ -73,7 +73,7 @@
          <Button Command="{Binding DataContext.TogglePluginCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}">
           <Button.Style><Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}"><Setter Property="Content" Value="启用"/><Style.Triggers><DataTrigger Binding="{Binding IsEnabled}" Value="True"><Setter Property="Content" Value="停用"/></DataTrigger></Style.Triggers></Style></Button.Style>
          </Button>
-         <Button Content="卸载" Click="Uninstall_OnClick" Tag="{Binding}" Margin="0" Background="#FFF3F2" Foreground="#B42318" BorderBrush="#F1C6C2"/>
+         <Button Content="卸载" Click="Uninstall_OnClick" Tag="{Binding}" Margin="0" Background="{StaticResource DangerSoftBgBrush}" Foreground="{StaticResource DangerTextBrush}" BorderBrush="{StaticResource DangerSoftBorderBrush}"/>
         </StackPanel>
        </Grid>
       </Border></DataTemplate></ListBox.ItemTemplate>

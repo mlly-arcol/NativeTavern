@@ -1,12 +1,14 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using NativeTavern.Services;
 
 namespace NativeTavern.ViewModels;
 
-public partial class PromptInspectorViewModel(ChatViewModel chat) : ObservableObject
+public partial class PromptInspectorViewModel(ChatViewModel chat, LocalizationService localization) : ObservableObject
 {
     [ObservableProperty] private string _promptText = "Open a chat and select Refresh to inspect the current request.";
     [ObservableProperty] private string _activatedLore = "None";
+    [ObservableProperty] private string _historyBudget = "None";
     [ObservableProperty] private int _estimatedTokens;
     [ObservableProperty] private string? _statusMessage;
 
@@ -19,6 +21,9 @@ public partial class PromptInspectorViewModel(ChatViewModel chat) : ObservableOb
             if (preview is null) { StatusMessage = "没有可检查的聊天。"; return; }
             EstimatedTokens = preview.EstimatedTokens;
             ActivatedLore = preview.ActivatedLoreEntries.Count == 0 ? "None" : string.Join(", ", preview.ActivatedLoreEntries);
+            HistoryBudget = preview.TrimmedMessages == 0
+                ? localization.Text("全部保留", "All kept")
+                : localization.Text($"省略最早 {preview.TrimmedMessages} 条", $"Dropped {preview.TrimmedMessages} oldest");
             PromptText = string.Join("\n\n", preview.Messages.Select((message, index) => $"[{index + 1}] {message.Role}\n{message.Content}"));
             StatusMessage = "Prompt 已刷新。";
         }

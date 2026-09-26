@@ -14,8 +14,8 @@
         Loaded="Dialog_OnLoaded">
     <Window.Resources>
         <Style x:Key="DialogDangerButtonStyle" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
-            <Setter Property="Background" Value="#C83C32"/>
-            <Setter Property="BorderBrush" Value="#C83C32"/>
+            <Setter Property="Background" Value="{StaticResource DangerSolidBrush}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource DangerSolidBrush}"/>
             <Setter Property="Foreground" Value="White"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="MinWidth" Value="104"/>
@@ -25,7 +25,7 @@
     </Window.Resources>
 
     <Grid Margin="18">
-        <Border Background="White"
+        <Border Background="{StaticResource PanelBrush}"
                 BorderBrush="{StaticResource BorderBrush}"
                 BorderThickness="1"
                 CornerRadius="16"
@@ -42,7 +42,7 @@
                     <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
 
-                <Border Width="42" Height="4" CornerRadius="2" Background="#D94A3D" HorizontalAlignment="Left"/>
+                <Border Width="42" Height="4" CornerRadius="2" Background="{StaticResource DangerSolidBrush}" HorizontalAlignment="Left"/>
 
                 <TextBlock x:Name="DialogTitle"
                            Grid.Row="1"
@@ -62,15 +62,15 @@
                 <Border Grid.Row="3"
                         Margin="0,18,0,0"
                         Padding="13,11"
-                        Background="#FFF4F2"
-                        BorderBrush="#F2D2CE"
+                        Background="{StaticResource DangerSoftBgBrush}"
+                        BorderBrush="{StaticResource DangerSoftBorderBrush}"
                         BorderThickness="1"
                         CornerRadius="9">
                     <TextBlock x:Name="DialogDetail"
                                FontSize="12"
                                LineHeight="19"
                                TextWrapping="Wrap"
-                               Foreground="#8D3028"/>
+                               Foreground="{StaticResource DangerStrongTextBrush}"/>
                 </Border>
 
                 <StackPanel Grid.Row="4"

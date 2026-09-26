@@ -3,6 +3,7 @@ namespace NativeTavern.Models;
 public sealed class ProviderSettings
 {
     public string LanguageCode { get; set; } = "zh-CN";
+    public string ThemeMode { get; set; } = "system";
     public string ProviderId { get; set; } = "openai-compatible";
     public string BaseUrl { get; set; } = "https://api.openai.com/v1";
     public string ApiKeyEncrypted { get; set; } = string.Empty;
@@ -11,6 +12,7 @@ public sealed class ProviderSettings
     public double TopP { get; set; } = 1.0;
     public int MaxTokens { get; set; } = 1024;
     public int ContextLength { get; set; } = 8192;
+    public bool TrimHistoryToContext { get; set; } = true;
     public bool AutoScanLocalModels { get; set; } = true;
     public string LocalModelDirectory { get; set; } = Services.LocalModelService.DefaultModelDirectory;
     public string LlamaCppPath { get; set; } = Services.LocalModelService.DefaultLlamaCppPath;

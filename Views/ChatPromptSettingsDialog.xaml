@@ -6,7 +6,7 @@
         WindowStyle="None" AllowsTransparency="True" Background="Transparent"
         ShowInTaskbar="False" PreviewKeyDown="Dialog_OnPreviewKeyDown">
  <Grid Margin="18">
-  <Border Background="White" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
+  <Border Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
           CornerRadius="16" Padding="26,24,26,22">
    <Border.Effect><DropShadowEffect BlurRadius="24" ShadowDepth="6" Opacity="0.20" Color="#32000000"/></Border.Effect>
    <Grid>
@@ -14,7 +14,7 @@
      <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
      <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/>
     </Grid.RowDefinitions>
-    <Border Width="42" Height="4" CornerRadius="2" Background="#151515" HorizontalAlignment="Left"/>
+    <Border Width="42" Height="4" CornerRadius="2" Background="{StaticResource TextBrush}" HorizontalAlignment="Left"/>
     <TextBlock Grid.Row="1" Text="对话设置" Margin="0,17,0,0" FontSize="21" FontWeight="SemiBold"/>
     <TextBlock Grid.Row="2" Text="调整仅用于当前对话的可选上下文。" Margin="0,7,0,0"
                Foreground="{StaticResource MutedTextBrush}" FontSize="12"/>
@@ -35,7 +35,17 @@
      </StackPanel>
     </Grid>
 
-    <TextBlock Grid.Row="4" Text="作者备注" FontWeight="SemiBold" Margin="0,22,0,8"/>
+    <Grid Grid.Row="4" Margin="0,22,0,8">
+     <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="250"/></Grid.ColumnDefinitions>
+     <TextBlock Text="作者备注" FontWeight="SemiBold" VerticalAlignment="Center"/>
+     <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+      <TextBlock Text="分组" FontWeight="SemiBold" Margin="0,0,8,0" VerticalAlignment="Center"/>
+      <ComboBox x:Name="SessionGroupBox" Width="150" Height="30" IsEditable="True"
+                ItemsSource="{Binding SessionGroups}" ToolTip="把相关对话放在一起，切换列表里会跟着标题显示"/>
+      <TextBlock Text="留空即取消分组" FontSize="11" Margin="8,0,0,0" VerticalAlignment="Center"
+                 Foreground="{StaticResource MutedTextBrush}"/>
+     </StackPanel>
+    </Grid>
     <TextBox x:Name="AuthorNoteBox" Grid.Row="5" AcceptsReturn="True" TextWrapping="Wrap"
              VerticalScrollBarVisibility="Auto" Padding="12,10" MaxLength="4000"/>
 

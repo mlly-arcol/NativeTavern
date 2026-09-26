@@ -44,6 +44,7 @@ public partial class App : Application
             await _services.GetRequiredService<DatabaseInitializer>().InitializeAsync();
             var storedSettings = await _services.GetRequiredService<SettingsService>().LoadAsync();
             _services.GetRequiredService<LocalizationService>().SetLanguage(storedSettings.LanguageCode);
+            ThemeService.Apply(storedSettings.ThemeMode);
             var login = new Views.LoginWindow();
             if (login.ShowDialog() != true)
             {
@@ -75,12 +76,13 @@ public partial class App : Application
         base.OnExit(e);
     }
 
-    private static void ConfigureServices(IServiceCollection services)
+    internal static void ConfigureServices(IServiceCollection services)
     {
         services.AddLogging(builder => builder.AddProvider(new FileLoggerProvider(AppPaths.LogFile)));
         services.AddSingleton<DatabaseConnectionFactory>();
         services.AddSingleton<DatabaseInitializer>();
         services.AddSingleton<ChatSessionRepository>();
+        services.AddSingleton<ComposerDraftRepository>();
         services.AddSingleton<ChatMessageRepository>();
         services.AddSingleton<MessageSwipeRepository>();
         services.AddSingleton<SettingsRepository>();
@@ -89,6 +91,7 @@ public partial class App : Application
         services.AddSingleton<KnowledgeRepository>();
         services.AddSingleton<ChatAttachmentRepository>();
         services.AddSingleton<CharacterStatusRepository>();
+        services.AddSingleton<RegexScriptRepository>();
         services.AddSingleton<ISecretProtector, DpapiSecretProtector>();
         services.AddSingleton<SettingsService>();
         services.AddSingleton<BackupService>();
@@ -100,6 +103,8 @@ public partial class App : Application
         services.AddSingleton<AttachmentService>();
         services.AddSingleton<ConversationSummaryService>();
         services.AddSingleton<CharacterStatusService>();
+        services.AddSingleton<RegexScriptService>();
+        services.AddSingleton<PromptResourceService>();
         services.AddSingleton<ReplySuggestionService>();
         services.AddSingleton<TrayService>();
         services.AddHttpClient<OpenAICompatibleProvider>(client => client.Timeout = Timeout.InfiniteTimeSpan);

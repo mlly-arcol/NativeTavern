@@ -6,7 +6,7 @@
         WindowStyle="None" AllowsTransparency="True" Background="Transparent"
         ShowInTaskbar="False" PreviewKeyDown="Dialog_OnPreviewKeyDown" Loaded="Dialog_OnLoaded">
  <Grid Margin="18">
-  <Border Background="White" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
+  <Border Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
           CornerRadius="16" Padding="26,24,26,22">
    <Border.Effect><DropShadowEffect BlurRadius="24" ShadowDepth="6" Opacity="0.20" Color="#32000000"/></Border.Effect>
    <Grid>
@@ -14,12 +14,12 @@
      <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
      <RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/>
     </Grid.RowDefinitions>
-    <Border Width="42" Height="4" CornerRadius="2" Background="#151515" HorizontalAlignment="Left"/>
+    <Border Width="42" Height="4" CornerRadius="2" Background="{StaticResource TextBrush}" HorizontalAlignment="Left"/>
     <TextBlock x:Name="DialogTitle" Grid.Row="1" Margin="0,17,0,0" FontSize="21" FontWeight="SemiBold"/>
     <StackPanel Grid.Row="2" Margin="0,20,0,0">
      <TextBlock x:Name="NameLabel" Text="分组名称" FontWeight="SemiBold" Margin="0,0,0,8"/>
      <TextBox x:Name="GroupNameBox" MaxLength="80"/>
-     <TextBlock x:Name="ValidationMessage" Foreground="#B42318" FontSize="12" Margin="2,7,0,0"/>
+     <TextBlock x:Name="ValidationMessage" Foreground="{StaticResource DangerTextBrush}" FontSize="12" Margin="2,7,0,0"/>
     </StackPanel>
     <Grid Grid.Row="3" Margin="0,19,0,9">
      <TextBlock x:Name="SelectionLabel" Text="选择该分组包含的角色" FontWeight="SemiBold"/>

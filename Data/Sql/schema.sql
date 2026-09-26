@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS Characters (
     Creator TEXT NOT NULL,
     Tags TEXT NOT NULL,
     GroupName TEXT NOT NULL DEFAULT '',
+    Aliases TEXT NOT NULL DEFAULT '',
     IsFavorite INTEGER NOT NULL DEFAULT 0,
     AvatarPath TEXT NOT NULL,
     CreatedAt TEXT NOT NULL,
@@ -32,6 +33,10 @@ CREATE TABLE IF NOT EXISTS ChatSessions (
     PromptPresetId INTEGER NULL,
     AuthorNote TEXT NOT NULL DEFAULT '',
     Summary TEXT NOT NULL DEFAULT '',
+    SummaryCoveredCount INTEGER NOT NULL DEFAULT 0,
+    SummaryIsManual INTEGER NOT NULL DEFAULT 0,
+    GroupName TEXT NOT NULL DEFAULT '',
+    IsPinned INTEGER NOT NULL DEFAULT 0,
     CreatedAt TEXT NOT NULL,
     UpdatedAt TEXT NOT NULL,
     FOREIGN KEY (ParentSessionId) REFERENCES ChatSessions(Id) ON DELETE SET NULL,
@@ -54,6 +59,7 @@ CREATE TABLE IF NOT EXISTS ChatMessages (
     CreatedAt TEXT NOT NULL,
     UpdatedAt TEXT NULL,
     CurrentSwipeIndex INTEGER NOT NULL DEFAULT 0,
+    IsPinned INTEGER NOT NULL DEFAULT 0,
     FOREIGN KEY (ChatSessionId) REFERENCES ChatSessions(Id) ON DELETE CASCADE
 );
 CREATE INDEX IF NOT EXISTS IX_ChatMessages_ChatSessionId ON ChatMessages(ChatSessionId);
@@ -154,3 +160,25 @@ CREATE TABLE IF NOT EXISTS CharacterStatuses (
     FOREIGN KEY (SourceMessageId) REFERENCES ChatMessages(Id) ON DELETE SET NULL
 );
 CREATE INDEX IF NOT EXISTS IX_CharacterStatuses_CharacterId ON CharacterStatuses(CharacterId);
+CREATE TABLE IF NOT EXISTS RegexScripts (
+    Id INTEGER PRIMARY KEY AUTOINCREMENT,
+    Name TEXT NOT NULL,
+    Pattern TEXT NOT NULL,
+    Replacement TEXT NOT NULL,
+    Target TEXT NOT NULL DEFAULT 'AssistantOutput',
+    Mode TEXT NOT NULL DEFAULT 'Regex',
+    IsEnabled INTEGER NOT NULL DEFAULT 1,
+    SortOrder INTEGER NOT NULL DEFAULT 0,
+    CreatedAt TEXT NOT NULL,
+    UpdatedAt TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS IX_RegexScripts_Target ON RegexScripts(Target, IsEnabled, SortOrder);
+CREATE INDEX IF NOT EXISTS IX_ChatSessions_UpdatedAt ON ChatSessions(UpdatedAt DESC);
+-- Text typed but never sent, one row per conversation, dropped together with the conversation.
+CREATE TABLE IF NOT EXISTS ComposerDrafts (
+    ChatSessionId INTEGER PRIMARY KEY,
+    DraftText TEXT NOT NULL,
+    DraftImages TEXT NOT NULL DEFAULT '[]',
+    UpdatedAt TEXT NOT NULL,
+    FOREIGN KEY (ChatSessionId) REFERENCES ChatSessions(Id) ON DELETE CASCADE
+);
